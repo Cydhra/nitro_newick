@@ -1,0 +1,11 @@
+OpenParen
+String("BC")
+Comma
+String("D  D")
+Comma
+String("()")
+CloseParen
+String("A")
+Semicolon
+String(";")
+End
