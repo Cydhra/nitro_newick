@@ -253,4 +253,26 @@ mod tests {
             }
         }
     }
+
+    #[rstest]
+    fn reject_failing(#[files("tests/resources/tokenizer/reject/*.nw")] path: PathBuf) {
+        // output the file name for easy identification in log files
+        println!("Testing file: {:?}", path.file_name().unwrap());
+
+        let stream = File::open(path).expect("Could not open file");
+        let mut tokenizer = Tokenizer::new(stream);
+
+        loop {
+            let result = tokenizer.next_token();
+            if let Ok(result) = result {
+                if let Token::End = result {
+                    // if we reach this point, the test has failed
+                    assert!(false, "Expected failure, but no error was raised");
+                }
+            } else {
+                // if we reach this point, the test has passed
+                break;
+            }
+        }
+    }
 }
