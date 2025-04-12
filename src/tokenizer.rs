@@ -105,7 +105,7 @@ impl<R: Read> Tokenizer<R> {
         // and then refill the buffer
         if self.position == self.length {
             let mut literal = Vec::with_capacity(32);
-            literal.copy_from_slice(&self.buffer[start..self.length]);
+            literal.extend_from_slice(&self.buffer[start..self.length]);
 
             self.fill_buffer()?;
 
