@@ -56,7 +56,7 @@ impl<R: Read> Tokenizer<R> {
 
         let byte = self.buffer[self.position];
         match byte {
-            0..9 => self.read_float(),
+            b'-' | b'.' | b'0'..=b'9' => self.read_float(),
             b',' => {
                 self.position += 1;
                 Ok(Token::Comma)
@@ -144,7 +144,7 @@ impl<R: Read> Tokenizer<R> {
     ///
     /// If the float literal is larger than the buffer size, it will panic.
     fn read_float(&mut self) -> Result<Token, TokenizerError> {
-        let token = self.read_token(|&b| !(b.is_ascii_digit() || b == b'.'))?;
+        let token = self.read_token(|&b| !(b.is_ascii_digit() || b == b'.' || b == b'-'))?;
         Ok(Token::Float(
             String::from_utf8_lossy(&token)
                 .parse()
