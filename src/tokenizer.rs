@@ -1,17 +1,22 @@
 use snafu::{ResultExt, Snafu, ensure};
 use std::borrow::Cow;
+use std::fmt::Display;
 use std::io::Read;
 
 const BUFFER_SIZE: usize = 16 * 1024;
 
+/// Error type for the tokenizer
 #[derive(Debug, Snafu)]
 pub enum TokenizerError {
+    /// Error while reading from the input reader
     #[snafu(display("Could not read input stream"))]
     InputError { source: std::io::Error },
 
+    /// Error while parsing a float
     #[snafu(display("Invalid float value"))]
     FloatError { source: std::num::ParseFloatError },
 
+    /// Error while trying to read structured input (but not a float)
     #[snafu(display("Cannot parse input: {reason}"))]
     ParseError { reason: String },
 }
@@ -26,6 +31,12 @@ pub(super) enum Token {
     Colon,
     Semicolon,
     End,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub(super) struct Tokenizer<R: Read> {
