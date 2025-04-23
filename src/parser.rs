@@ -32,20 +32,18 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
     }
 
     pub fn parse(&mut self) -> Result<Option<B::Tree>, ParseError> {
-        let token = self.tokenizer.next_token().context(InputSnafu {})?;
-        if matches!(token, Semicolon) {
-            Ok(Some(self.builder.build()))
-        } else if matches!(token, OpenParen) {
-            let mut stack = vec![];
-            stack.push(vec![]);
-            loop {
-                let token = self.tokenizer.next_token().context(InputSnafu {})?;
-                if matches!(token, OpenParen) {
+        let mut stack = vec![];
+        loop {
+            let token = self.tokenizer.next_token().context(InputSnafu {})?;
+            match token {
+                OpenParen => {
+                    // push a new node to the stack
                     stack.push(vec![]);
-                } else if matches!(token, CloseParen) {
+                }
+                CloseParen => {
                     if stack.is_empty() {
                         return Err(ParseError::UnexpectedToken {
-                            expected: vec![Semicolon],
+                            expected: vec![OpenParen, Semicolon],
                             found: token,
                         });
                     }
@@ -99,9 +97,8 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                     if matches!(token, Comma) {
                         self.tokenizer.next_token().context(InputSnafu {})?;
                     }
-                } else if matches!(token, Semicolon) {
-                    return Ok(Some(self.builder.build()));
-                } else if matches!(token, Comma) {
+                }
+                Comma => {
                     // if we encounter a comma, it means there is a leaf node, because otherwise
                     // we would have encountered a close parenthesis first, and consumed the
                     // comma
@@ -112,23 +109,22 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                     // push current edge to the parent children
                     if let Some(children) = stack.last_mut() {
                         children.push((node_id, None, None));
+                    } else {
+                        return Err(ParseError::UnexpectedToken {
+                            expected: vec![OpenParen, Semicolon],
+                            found: token,
+                        });
                     }
-                } else {
+                }
+                Semicolon => { return Ok(Some(self.builder.build())); }
+                End => { return Ok(None) }
+                _ => {
                     return Err(ParseError::UnexpectedToken {
-                        expected: vec![OpenParen, CloseParen, Semicolon],
+                        expected: vec![OpenParen, CloseParen, Semicolon, Comma],
                         found: token,
                     });
                 }
             }
-
-            Ok(Some(self.builder.build()))
-        } else if matches!(token, End) {
-            Ok(None)
-        } else {
-            Err(ParseError::UnexpectedToken {
-                expected: vec![OpenParen, Semicolon],
-                found: token,
-            })
         }
     }
 }
