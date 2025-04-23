@@ -44,6 +44,7 @@ pub(super) struct Tokenizer<R: Read> {
     buffer: Box<[u8; BUFFER_SIZE]>,
     position: usize,
     length: usize,
+    lookahead: Option<Token>,
 }
 
 impl<R: Read> Tokenizer<R> {
@@ -53,10 +54,25 @@ impl<R: Read> Tokenizer<R> {
             buffer: Box::new([0; BUFFER_SIZE]),
             position: 0,
             length: 0,
+            lookahead: None,
+        }
+    }
+
+    pub(super) fn peek(&mut self) -> Result<Token, TokenizerError> {
+        if self.lookahead.is_some() {
+            Ok(self.lookahead.as_ref().unwrap().clone())
+        } else {
+            let token = self.next_token()?;
+            self.lookahead = Some(token.clone());
+            Ok(token)
         }
     }
 
     pub(super) fn next_token(&mut self) -> Result<Token, TokenizerError> {
+        if let Some(token) = self.lookahead.take() {
+            return Ok(token);
+        }
+
         if self.position >= self.length {
             self.fill_buffer()?;
 
