@@ -91,8 +91,8 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                         node_label = label;
                         node_support = support;
                         node_branch_length = branch_length;
-                    } else {
-                        // consume trailing comma if present
+                    } else if stack.len() > 1 {
+                        // consume trailing comma if present and this isn't the root node
                         self.consume_trailing_comma()?;
                     }
 
@@ -152,12 +152,12 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                     // add a leaf node
                     let node_id = self.builder.add_node(None);
 
-                    // there has to be at least one more node, but expect_sibling must be already
-                    // set to true at this point
-                    debug_assert!(self.expect_sibling == true);
-
                     // push current edge to the parent children
                     if let Some(children) = stack.last_mut() {
+                        // there has to be at least one more node, but expect_sibling must be already
+                        // set to true at this point
+                        debug_assert!(self.expect_sibling == true);
+
                         children.push((node_id, None, None));
                     } else {
                         return Err(ParseError::UnexpectedToken {
