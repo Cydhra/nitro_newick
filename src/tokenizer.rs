@@ -21,10 +21,10 @@ pub enum TokenizerError {
     ParseError { reason: String },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) enum Token {
     Float(f64),
-    String(String),
+    Name(String),
     Comma,
     OpenParen,
     CloseParen,
@@ -167,7 +167,7 @@ impl<R: Read> Tokenizer<R> {
         let token = self.read_token(|&b| {
             b.is_ascii_whitespace() || b == b',' || b == b';' || b == b':' || b == b'(' || b == b')'
         })?;
-        Ok(Token::String(
+        Ok(Token::Name(
             String::from_utf8_lossy(&token).replace('_', " ").into(),
         ))
     }
@@ -196,7 +196,7 @@ impl<R: Read> Tokenizer<R> {
                 break;
             }
         }
-        Ok(Token::String(token_string))
+        Ok(Token::Name(token_string))
     }
 
     /// Reads from the input stream into the buffer.
