@@ -1,10 +1,21 @@
-pub struct UnrootedTree {
+pub type NodeId = usize;
 
+pub struct UnrootedTree {
+    nodes: Vec<TreeNode>,
 }
 
 pub struct TreeNode {
     label: NodeLabel,
-    children: Vec<TreeNode>,
+    edges: Vec<DirectedEdge>,
+}
+
+/// A directed edge in the tree.
+/// The direction is arbitrary, as all trees are undirected and therefore each edge has a reverse
+/// edge.
+pub struct DirectedEdge {
+    target: NodeId,
+    support: Option<f64>,
+    branch_length: Option<f64>,
 }
 
 pub enum NodeLabel {
