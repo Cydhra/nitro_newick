@@ -242,10 +242,12 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
         let mut node_branch_length = None;
 
         // parse node label or support
-        let mut token = self.tokenizer.next_token().context(InputSnafu {})?;
+        let mut token = self.tokenizer.peek().context(InputSnafu {})?;
         if let Name(label) = token {
+            self.tokenizer.next_token().context(InputSnafu {})?;
             node_label = Some(label);
         } else if let Float(support) = token {
+            self.tokenizer.next_token().context(InputSnafu {})?;
             node_support = Some(support);
         }
 
