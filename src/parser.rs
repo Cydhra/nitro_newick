@@ -132,3 +132,36 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::path::PathBuf;
+    use super::*;
+    use rstest::rstest;
+
+    struct MockTreeBuilder;
+
+    impl TreeBuilder for MockTreeBuilder {
+        type Tree = ();
+        type NodeId = ();
+
+        fn build(&mut self) -> Self::Tree {}
+
+        fn add_node(&mut self, _label: Option<String>) -> Self::NodeId {}
+
+        fn add_edge(&mut self, _parent: Self::NodeId, _child: Self::NodeId, _support: Option<f64>, _branch_length: Option<f64>) {}
+    }
+
+    #[rstest]
+    fn expect_working(#[files("tests/resources/parser/accept/*.nw")] path: PathBuf) {
+        // output the file name for easy identification in log files
+        println!("Testing file: {:?}", path.file_name().unwrap());
+
+        let stream = File::open(path).expect("Could not open file");
+        let builder = MockTreeBuilder {};
+        let mut parser = Parser::new(stream, builder);
+
+        parser.parse().expect("Failed to parse file");
+    }
+}
