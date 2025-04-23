@@ -34,8 +34,16 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
 
     pub fn parse(&mut self) -> Result<Option<B::Tree>, ParseError> {
         let mut stack = vec![];
+        let mut tree_finished = true;
+
         loop {
             let token = self.tokenizer.next_token().context(InputSnafu {})?;
+
+            // mark tree as unfinished if we encounter a token that is not a semicolon or end
+            if !matches!(token, Semicolon | End) {
+                tree_finished = false;
+            }
+
             match token {
                 OpenParen => {
                     // push a new node to the stack
@@ -131,8 +139,34 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                         });
                     }
                 }
-                Semicolon => { return Ok(Some(self.builder.build())); }
-                End => { return Ok(None) }
+                Semicolon => {
+                    if !stack.is_empty() {
+                        return Err(ParseError::UnexpectedToken {
+                            expected: vec![CloseParen],
+                            found: token,
+                            reason: "There are unclosed parentheses".to_string(),
+                        });
+                    }
+
+                    tree_finished = true;
+                    return Ok(Some(self.builder.build()));
+                }
+                End => {
+                    if !stack.is_empty() {
+                        return Err(ParseError::UnexpectedToken {
+                            expected: vec![CloseParen],
+                            found: token,
+                            reason: "There are unclosed parentheses".to_string(),
+                        });
+                    } else if !tree_finished {
+                        return Err(ParseError::UnexpectedToken {
+                            expected: vec![Semicolon],
+                            found: token,
+                            reason: "Tree is not finished, missing semicolon".to_string(),
+                        });
+                    }
+                    return Ok(None)
+                }
                 _ => {
                     return Err(ParseError::UnexpectedToken {
                         expected: vec![OpenParen, CloseParen, Semicolon, Comma],
@@ -237,5 +271,17 @@ mod tests {
         let mut parser = Parser::new(stream, builder);
 
         parser.parse().expect("Failed to parse file");
+    }
+
+    #[rstest]
+    fn reject_failing(#[files("tests/resources/parser/reject/*.nw")] path: PathBuf) {
+        // output the file name for easy identification in log files
+        println!("Testing file: {:?}", path.file_name().unwrap());
+
+        let stream = File::open(&path).expect("Could not open file");
+        let builder = MockTreeBuilder {};
+        let mut parser = Parser::new(stream, builder);
+
+        assert!(parser.parse().is_err(), "Expected parse to fail for file: {:?}", path);
     }
 }
