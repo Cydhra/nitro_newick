@@ -241,13 +241,6 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                     }
                     return Ok(None);
                 }
-                _ => {
-                    return Err(ParseError::UnexpectedToken {
-                        expected: vec![OpenParen, CloseParen, Semicolon, Comma],
-                        found: token,
-                        reason: "Unexpected token".to_string(),
-                    });
-                }
             }
         }
     }
