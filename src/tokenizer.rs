@@ -22,7 +22,7 @@ pub enum TokenizerError {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum Token {
+pub enum Token {
     Float(f64),
     Name(String),
     Comma,
