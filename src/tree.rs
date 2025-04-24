@@ -145,6 +145,7 @@ impl TreeBuilder for SimpleTreeBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::parser::Parser;
     use super::*;
 
     #[test]
@@ -181,5 +182,43 @@ mod tests {
         assert_eq!(tree.node(node2).edges()[1].branch_length, Some(0.3));
         assert_eq!(tree.node(node3).edges()[0].support, Some(0.8));
         assert_eq!(tree.node(node3).edges()[0].branch_length, Some(0.3));
+    }
+    
+    #[test]
+    fn test_parsing() {
+        let newick = "(A:0.5,(B:0.8,C:0.2)D:0.1)R;";
+        let builder = SimpleTreeBuilder::new();
+        let mut parser = Parser::new(newick.as_bytes(), builder);
+        let result = parser.parse().expect("Parsing failed.");
+        let tree = result.expect("Parser returned no tree.");
+        
+        assert_eq!(tree.node_count(), 5);
+        assert_eq!(tree.node(0).label, Some(String::from("A")));
+        assert_eq!(tree.node(1).label, Some(String::from("B")));
+        assert_eq!(tree.node(2).label, Some(String::from("C")));
+        assert_eq!(tree.node(3).label, Some(String::from("D")));
+        assert_eq!(tree.node(4).label, Some(String::from("R")));
+        
+        assert_eq!(tree.node(0).edges().len(), 1);
+        assert_eq!(tree.node(0).edges()[0].target, 4);
+        assert_eq!(tree.node(0).edges()[0].branch_length, Some(0.5));
+        assert_eq!(tree.node(1).edges().len(), 1);
+        assert_eq!(tree.node(1).edges()[0].target, 3);
+        assert_eq!(tree.node(1).edges()[0].branch_length, Some(0.8));
+        assert_eq!(tree.node(2).edges().len(), 1);
+        assert_eq!(tree.node(2).edges()[0].target, 3);
+        assert_eq!(tree.node(2).edges()[0].branch_length, Some(0.2));
+        assert_eq!(tree.node(3).edges().len(), 3);
+        assert_eq!(tree.node(3).edges()[0].target, 1);
+        assert_eq!(tree.node(3).edges()[0].branch_length, Some(0.8));
+        assert_eq!(tree.node(3).edges()[1].target, 2);
+        assert_eq!(tree.node(3).edges()[1].branch_length, Some(0.2));
+        assert_eq!(tree.node(3).edges()[2].target, 4);
+        assert_eq!(tree.node(3).edges()[2].branch_length, Some(0.1));
+        assert_eq!(tree.node(4).edges().len(), 2);
+        assert_eq!(tree.node(4).edges()[0].target, 0);
+        assert_eq!(tree.node(4).edges()[0].branch_length, Some(0.5));
+        assert_eq!(tree.node(4).edges()[1].target, 3);
+        assert_eq!(tree.node(4).edges()[1].branch_length, Some(0.1));
     }
 }
