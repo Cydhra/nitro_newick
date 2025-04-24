@@ -142,3 +142,44 @@ impl TreeBuilder for SimpleTreeBuilder {
         self.tree.nodes[child].edges.push(DirectedEdge::new(parent, support, branch_length));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tree_builder() {
+        let mut builder = SimpleTreeBuilder::new();
+        let node1 = builder.add_node(Some("A".to_string()));
+        let node2 = builder.add_node(Some("B".to_string()));
+        let node3 = builder.add_node(Some("C".to_string()));
+
+        builder.add_edge(node1, node2, Some(0.9), Some(0.5));
+        builder.add_edge(node2, node3, Some(0.8), Some(0.3));
+
+        let tree = builder.build();
+
+        assert_eq!(tree.node_count(), 3);
+        assert_eq!(tree.node(node1).label, Some("A".to_string()));
+        assert_eq!(tree.node(node2).label, Some("B".to_string()));
+        assert_eq!(tree.node(node3).label, Some("C".to_string()));
+        
+        assert_eq!(tree.node(node1).edges().len(), 1);
+        assert_eq!(tree.node(node1).edges()[0].target, node2);
+        assert_eq!(tree.node(node2).edges().len(), 2);
+        assert_eq!(tree.node(node2).edges()[0].target, node1);
+        assert_eq!(tree.node(node2).edges()[1].target, node3);
+        
+        assert_eq!(tree.node(node3).edges().len(), 1);
+        assert_eq!(tree.node(node3).edges()[0].target, node2);
+        
+        assert_eq!(tree.node(node1).edges()[0].support, Some(0.9));
+        assert_eq!(tree.node(node1).edges()[0].branch_length, Some(0.5));
+        assert_eq!(tree.node(node2).edges()[0].support, Some(0.9));
+        assert_eq!(tree.node(node2).edges()[0].branch_length, Some(0.5));
+        assert_eq!(tree.node(node2).edges()[1].support, Some(0.8));
+        assert_eq!(tree.node(node2).edges()[1].branch_length, Some(0.3));
+        assert_eq!(tree.node(node3).edges()[0].support, Some(0.8));
+        assert_eq!(tree.node(node3).edges()[0].branch_length, Some(0.3));
+    }
+}
