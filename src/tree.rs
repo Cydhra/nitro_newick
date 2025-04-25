@@ -16,6 +16,7 @@ pub type TraversalOrder = [NodeId];
 /// The edges are represented as directed edges, meaning each edge exists twice: once for each
 /// direction.
 /// Consequently, modification requires finding and modifying both edges.
+#[derive(Clone, Debug)]
 pub struct UnrootedTree {
     nodes: Vec<TreeNode>,
     virtual_root: Option<NodeId>,
@@ -95,6 +96,7 @@ impl UnrootedTree {
 }
 
 /// A node in the tree.
+#[derive(Clone, Debug)]
 pub struct TreeNode {
     pub label: Option<String>,
     edges: Vec<DirectedEdge>,
@@ -123,6 +125,7 @@ impl TreeNode {
 /// A directed edge in the tree.
 /// The direction is arbitrary, as all trees are undirected and therefore each edge has a reverse
 /// edge containing the same support and branch length values.
+#[derive(Clone, Debug)]
 pub struct DirectedEdge {
     target: NodeId,
     pub support: Option<f64>,
