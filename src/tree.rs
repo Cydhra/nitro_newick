@@ -1,4 +1,4 @@
-use crate::TreeBuilder;
+use crate::{TreeBuilder, TreeSerialize};
 use std::mem;
 
 pub type NodeId = usize;
@@ -205,6 +205,27 @@ impl TreeBuilder for SimpleTreeBuilder {
         self.tree.nodes[child]
             .edges
             .push(DirectedEdge::new(parent, support, branch_length));
+    }
+}
+
+impl TreeSerialize for UnrootedTree {
+    type NodeId = NodeId;
+
+    fn get_virtual_root(&self) -> Option<Self::NodeId> {
+        self.virtual_root
+    }
+
+    fn get_children(&self, parent: &Self::NodeId, node: &Self::NodeId) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)> {
+        self.nodes[*node].edges.iter().filter_map(|edge| {
+            if edge.target == *parent {
+                return None;
+            }
+            Some((&edge.target, edge.support, edge.branch_length))
+        })
+    }
+
+    fn get_label(&self, node: &Self::NodeId) -> Option<&String> {
+        self.nodes[*node].label.as_ref()
     }
 }
 
