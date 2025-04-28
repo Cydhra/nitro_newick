@@ -1,6 +1,6 @@
+use crate::TreeSerialize;
 use std::iter::Peekable;
 use std::marker::PhantomData;
-use crate::TreeSerialize;
 
 /// A struct representing a node in the tree during serialization.
 struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>> {
@@ -14,16 +14,25 @@ struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>>
 /// A serializer for trees in Newick format.
 /// This struct is generic over the tree type `T`, which must implement the `TreeSerialize` trait.
 /// It is used to query the tree structure during serialization.
-pub struct Serializer<T: TreeSerialize> { tree_type: PhantomData<T> }
+pub struct Serializer<T: TreeSerialize> {
+    tree_type: PhantomData<T>,
+}
 
 impl<T: TreeSerialize> Serializer<T> {
     /// Creates a new instance of the `Serializer`.
     pub fn new() -> Self {
-        Serializer { tree_type: PhantomData }
+        Serializer {
+            tree_type: PhantomData,
+        }
     }
 
     /// Helper function to push node data into the result string.
-    fn push_node_data(result: &mut String, label: Option<&String>, support: Option<f64>, branch_length: Option<f64>) {
+    fn push_node_data(
+        result: &mut String,
+        label: Option<&String>,
+        support: Option<f64>,
+        branch_length: Option<f64>,
+    ) {
         if let Some(label) = label {
             result.push_str(&format!("{}", label));
         } else if let Some(support) = support {
@@ -44,10 +53,17 @@ impl<T: TreeSerialize> Serializer<T> {
 
         let mut result = String::new();
         let mut stack = Vec::new();
-        let mut children = tree.get_children(root.as_ref().unwrap(), root.as_ref().unwrap()).peekable();
+        let mut children = tree
+            .get_children(root.as_ref().unwrap(), root.as_ref().unwrap())
+            .peekable();
 
         if children.peek().is_none() {
-            Self::push_node_data(&mut result, tree.get_label(root.as_ref().unwrap()), None, None);
+            Self::push_node_data(
+                &mut result,
+                tree.get_label(root.as_ref().unwrap()),
+                None,
+                None,
+            );
             result.push(';');
             return result;
         } else {
@@ -78,7 +94,12 @@ impl<T: TreeSerialize> Serializer<T> {
                     // skip adding a comma, and descend into the child
                     continue;
                 } else {
-                    Self::push_node_data(&mut result, tree.get_label(child_id), support, branch_length);
+                    Self::push_node_data(
+                        &mut result,
+                        tree.get_label(child_id),
+                        support,
+                        branch_length,
+                    );
                 }
             } else {
                 let node = stack.pop().unwrap();
@@ -103,8 +124,12 @@ impl<T: TreeSerialize> Serializer<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tree::{SimpleTreeBuilder, UnrootedTree};
     use crate::parser::Parser;
+    use crate::tree::{SimpleTreeBuilder, UnrootedTree};
+    use rstest::rstest;
+    use std::fs::File;
+    use std::io::Read;
+    use std::path::PathBuf;
 
     #[test]
     fn test_serialize() {
@@ -119,6 +144,24 @@ mod tests {
     #[test]
     fn test_serialize_anonymous() {
         let newick = "(:0.1,:0.2,(,D:0.4)F);";
+        let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
+        let tree = parser.parse().unwrap().expect("Parse Error");
+        let serializer = Serializer::<UnrootedTree>::new();
+        let serialized = serializer.serialize(&tree);
+        assert_eq!(serialized, newick);
+    }
+
+    #[rstest]
+    fn expect_working(#[files("tests/resources/serializer/*.nw")] path: PathBuf) {
+        // output the file name for easy identification in log files
+        println!("Testing file: {:?}", path.file_name().unwrap());
+
+        let stream = File::open(path).expect("Could not open file");
+        let mut newick = String::new();
+        let mut reader = std::io::BufReader::new(stream);
+        reader
+            .read_to_string(&mut newick)
+            .expect("Could not read file");
         let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
         let tree = parser.parse().unwrap().expect("Parse Error");
         let serializer = Serializer::<UnrootedTree>::new();
