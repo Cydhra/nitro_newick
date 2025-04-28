@@ -3,6 +3,7 @@ mod tokenizer;
 pub mod tree;
 
 pub mod parser;
+pub mod serializer;
 
 /// A trait for building tree structures.
 /// The trait is used by the [`Parser`] to create trees from newick data.
@@ -27,4 +28,21 @@ pub trait TreeBuilder {
     /// If the tree is rooted, the parent must be closer to the root than the child.
     /// An edge can only be added between two nodes that are already part of the tree.
     fn add_edge(&mut self, parent: Self::NodeId, child: Self::NodeId, support: Option<f64>, branch_length: Option<f64>);
+}
+
+/// A trait for building tree structures.
+/// The trait is used by the Serializer to create newick data from tree structures.
+/// Implementations of the trait allow the serializer to work with different tree data structures.
+pub trait TreeSerialize {
+    type NodeId: Clone;
+
+    /// Get the (virtual) root node of the tree.
+    fn get_virtual_root(&self) -> Option<Self::NodeId>;
+
+    /// Get the children of a node in the tree.
+    /// The iterator returns tuples of the form (child_node_id, support, branch_length).
+    fn get_children(&self, node: &Self::NodeId) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)>;
+
+    /// Get the label of a node in the tree.
+    fn get_label(&self, node: &Self::NodeId) -> Option<&String>;
 }
