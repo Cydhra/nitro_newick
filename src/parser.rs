@@ -1,6 +1,6 @@
-use crate::TreeBuilder;
 use crate::tokenizer::Token::*;
 use crate::tokenizer::{Token, Tokenizer, TokenizerError};
+use crate::TreeBuilder;
 use snafu::prelude::*;
 use std::io::Read;
 
@@ -12,6 +12,7 @@ pub enum ParseError {
     InputError { source: TokenizerError },
 
     /// Unexpected token in the input stream
+    #[snafu(display("Unexpected token: expected {} but found {:?}: {}", expected.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "), found, reason))]
     UnexpectedToken {
         expected: Vec<Token>,
         found: Token,
@@ -254,10 +255,9 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
     ) -> Result<(Option<String>, Option<f64>, Option<f64>), ParseError> {
         let mut node_label = None;
         let mut node_support = None;
-        let mut node_branch_length = None;
 
         // parse node label or support
-        let mut token = self.tokenizer.peek().context(InputSnafu {})?;
+        let token = self.tokenizer.peek().context(InputSnafu {})?;
         if let Name(label) = token {
             self.tokenizer.next_token().context(InputSnafu {})?;
             node_label = Some(label);
@@ -266,7 +266,7 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
             node_support = Some(support);
         }
 
-        node_branch_length = self.consume_branch_length()?;
+        let node_branch_length = self.consume_branch_length()?;
 
         Ok((node_label, node_support, node_branch_length))
     }
@@ -390,7 +390,13 @@ mod tests {
         let builder = MockTreeBuilder {};
         let mut parser = Parser::new(stream, builder);
 
-        parser.parse().expect("Failed to parse file");
+        // read all trees from the file
+        loop {
+            let res = parser.parse().expect("Failed to parse file");
+            if res.is_none() {
+                break;
+            }
+        }
     }
 
     #[rstest]
