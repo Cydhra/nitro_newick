@@ -114,16 +114,15 @@ impl<R: Read> Tokenizer<R> {
     }
 
     #[inline]
-    fn find_token_end(buffer: &[u8], max_index: usize, predicate: fn(&u8) -> bool) -> usize {
-        buffer.iter().position(predicate).unwrap_or(max_index)
+    fn find_token_end(buffer: &[u8], predicate: fn(&u8) -> bool) -> usize {
+        buffer.iter().position(predicate).unwrap_or(buffer.len())
     }
 
     #[inline]
     fn read_token(&mut self, predicate: fn(&u8) -> bool) -> Result<Cow<[u8]>, TokenizerError> {
         let start = self.position;
         let end = Self::find_token_end(
-            &self.buffer[self.position..],
-            self.length - self.position,
+            &self.buffer[self.position..self.length],
             predicate,
         );
         self.position += end;
@@ -140,8 +139,7 @@ impl<R: Read> Tokenizer<R> {
             if self.length > 0 {
                 let start = self.position;
                 let end = Self::find_token_end(
-                    &self.buffer[self.position..],
-                    self.length - self.position,
+                    &self.buffer[self.position..self.length],
                     predicate,
                 );
                 self.position += end;
