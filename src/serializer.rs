@@ -61,8 +61,8 @@ impl<T: TreeSerialize> Serializer<T> {
             Self::push_node_data(
                 &mut result,
                 tree.get_label(root.as_ref().unwrap()),
-                None,
-                None,
+                tree.get_tree_support(),
+                tree.get_tree_branch_length(),
             );
             result.push(';');
             return result;
@@ -71,8 +71,8 @@ impl<T: TreeSerialize> Serializer<T> {
             stack.push(Node {
                 id: root.as_ref().unwrap(),
                 label: tree.get_label(root.as_ref().unwrap()),
-                support: None,
-                branch_length: None,
+                support: tree.get_tree_support(),
+                branch_length: tree.get_tree_branch_length(),
                 children,
             });
         }

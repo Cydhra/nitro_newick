@@ -28,6 +28,9 @@ pub trait TreeBuilder {
     /// If the tree is rooted, the parent must be closer to the root than the child.
     /// An edge can only be added between two nodes that are already part of the tree.
     fn add_edge(&mut self, parent: Self::NodeId, child: Self::NodeId, support: Option<f64>, branch_length: Option<f64>);
+
+    /// Set the virtual root edge of the tree.
+    fn set_virtual_root(&mut self, node: Self::NodeId, support: Option<f64>, branch_length: Option<f64>);
 }
 
 /// A trait for building tree structures.
@@ -38,6 +41,15 @@ pub trait TreeSerialize {
 
     /// Get the (virtual) root node of the tree.
     fn get_virtual_root(&self) -> Option<Self::NodeId>;
+
+    /// Get the support value of the tree, which is stored as the name of the root node.
+    /// If the implementing type does not support this, it should return None.
+    fn get_tree_support(&self) -> Option<f64>;
+
+    /// Newick does allow the root to have a branch length, even though this information is not
+    /// associated with any edge in the tree.
+    /// If the implementing type does not support this, it should return None.
+    fn get_tree_branch_length(&self) -> Option<f64>;
 
     /// Get the children of a node in the tree, given the parent node. The iterator must not
     /// include an edge to the parent node.

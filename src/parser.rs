@@ -124,6 +124,9 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                     // push current edge to the parent children
                     if let Some(children) = stack.last_mut() {
                         children.push((node_id, node_support, node_branch_length));
+                    } else {
+                        // if there are no children, we are at the root node
+                        self.builder.set_virtual_root(node_id, node_support, node_branch_length);
                     }
                 }
                 Name(name) => {
@@ -350,6 +353,14 @@ mod tests {
             _branch_length: Option<f64>,
         ) {
         }
+
+        fn set_virtual_root(
+            &mut self,
+            _node: Self::NodeId,
+            _support: Option<f64>,
+            _branch_length: Option<f64>,
+        ) {
+        }
     }
 
     struct OutputTreeBuilder {
@@ -375,6 +386,14 @@ mod tests {
             &mut self,
             _parent: Self::NodeId,
             _child: Self::NodeId,
+            _support: Option<f64>,
+            _branch_length: Option<f64>,
+        ) {
+        }
+
+        fn set_virtual_root(
+            &mut self,
+            _node: Self::NodeId,
             _support: Option<f64>,
             _branch_length: Option<f64>,
         ) {

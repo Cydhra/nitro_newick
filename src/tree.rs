@@ -28,7 +28,7 @@ pub type TraversalOrder = [NodeId];
 #[derive(Clone, Debug)]
 pub struct NTree {
     nodes: Vec<TreeNode>,
-    virtual_root: Option<NodeId>,
+    virtual_root: Option<DirectedEdge>,
 }
 
 impl NTree {
@@ -79,7 +79,7 @@ impl NTree {
     /// Returns the virtual root of the tree.
     /// Returns `None` if the tree has no virtual root.
     pub fn virtual_root(&self) -> Option<NodeId> {
-        self.virtual_root
+        self.virtual_root.as_ref().map(|e| e.target)
     }
 
     /// Generate a postorder traversal order of the tree starting from the specified root node.
@@ -202,7 +202,6 @@ impl TreeBuilder for SimpleTreeBuilder {
     fn add_node(&mut self, label: Option<String>) -> Self::NodeId {
         let node_id = self.tree.nodes.len();
         self.tree.nodes.push(TreeNode::new(label));
-        self.tree.virtual_root = Some(node_id);
         node_id
     }
 
@@ -220,13 +219,25 @@ impl TreeBuilder for SimpleTreeBuilder {
             .edges
             .push(DirectedEdge::new(parent, support, branch_length));
     }
+
+    fn set_virtual_root(&mut self, node: Self::NodeId, support: Option<f64>, branch_length: Option<f64>) {
+        self.tree.virtual_root = Some(DirectedEdge::new(node, support, branch_length));
+    }
 }
 
 impl TreeSerialize for NTree {
     type NodeId = NodeId;
 
     fn get_virtual_root(&self) -> Option<Self::NodeId> {
-        self.virtual_root
+        self.virtual_root()
+    }
+
+    fn get_tree_support(&self) -> Option<f64> {
+        self.virtual_root.as_ref().and_then(|e| e.support)
+    }
+
+    fn get_tree_branch_length(&self) -> Option<f64> {
+        self.virtual_root.as_ref().and_then(|e| e.branch_length)
     }
 
     fn get_children(&self, parent: &Self::NodeId, node: &Self::NodeId) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)> {
