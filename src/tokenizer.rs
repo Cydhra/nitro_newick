@@ -58,14 +58,13 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    pub(super) fn peek(&mut self) -> Result<Token, TokenizerError> {
-        if self.lookahead.is_some() {
-            Ok(self.lookahead.as_ref().unwrap().clone())
-        } else {
+    pub(super) fn peek(&mut self) -> Result<&Token, TokenizerError> {
+        if !(self.lookahead.is_some()) {
             let token = self.next_token()?;
-            self.lookahead = Some(token.clone());
-            Ok(token)
+            self.lookahead = Some(token);
         }
+
+        Ok(self.lookahead.as_ref().unwrap())
     }
 
     pub(super) fn next_token(&mut self) -> Result<Token, TokenizerError> {

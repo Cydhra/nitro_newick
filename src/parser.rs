@@ -261,11 +261,11 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
 
         // parse node label or support
         let token = self.tokenizer.peek().context(InputSnafu {})?;
-        if let Name(label) = token {
-            self.tokenizer.next_token().context(InputSnafu {})?;
+        if let Name(_) = token {
+            let Name(label) = self.tokenizer.next_token().context(InputSnafu {})? else { unreachable!() };
             node_label = Some(label);
-        } else if let Float(support) = token {
-            self.tokenizer.next_token().context(InputSnafu {})?;
+        } else if let Float(_) = token {
+            let Float(support) = self.tokenizer.next_token().context(InputSnafu {})? else { unreachable!() };
             node_support = Some(support);
         }
 
@@ -319,7 +319,7 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
         } else {
             Err(ParseError::UnexpectedToken {
                 expected: vec![Comma, CloseParen, Semicolon],
-                found: token,
+                found: token.clone(),
                 reason:
                     "Expected a comma, closing parenthesis, or semicolon after a node definition"
                         .to_string(),
