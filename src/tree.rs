@@ -1,5 +1,5 @@
 use crate::{TreeBuilder, TreeSerialize};
-use std::mem;
+use std::{iter, mem};
 
 pub type NodeId = usize;
 
@@ -114,6 +114,35 @@ impl NTree {
 
         order.reverse();
         order
+    }
+
+    /// Returns an iterator over the edges in the tree in postorder traversal order starting from the
+    /// specified root node. The iterator yields tuples of the form (parent_id, edge).
+    /// The edge returned in each iteration is the directed edge from the parent node to the child node,
+    /// the child being the node that would be traversed in a normal postorder traversal.
+    ///
+    /// Note, that this function returns an iterator, unlike the [`postorder`] method, which returns a
+    /// [`TraversalOrder`].
+    ///
+    /// [`postorder`]: NTree::postorder
+    /// [`TraversalOrder`]: TraversalOrder
+    pub fn edge_postorder(&self, root: NodeId) -> impl Iterator<Item=(NodeId, DirectedEdge)> {
+        let mut stack = Vec::with_capacity(self.node_count() << 1);
+        stack.push(((root, root, self.get_tree_support(), self.get_tree_branch_length()), self.get_children(root, root)));
+        iter::from_fn(move || {
+            loop {
+                if let Some(((parent_id, node_id, support, branch_length), mut children)) = stack.pop() {
+                    if let Some((child_id, child_support, child_branch_length)) = children.next() {
+                        stack.push(((parent_id, node_id, support, branch_length), children));
+                        stack.push(((node_id, *child_id, child_support.clone(), child_branch_length.clone()), self.get_children(node_id, *child_id)));
+                    } else {
+                        return Some((parent_id, DirectedEdge::new(node_id, support, branch_length)));
+                    }
+                } else {
+                    return None;
+                }
+            }
+        })
     }
 
     /// Returns the length of the tree, which is the number of nodes in the tree.
@@ -366,5 +395,32 @@ mod tests {
         assert_eq!(tree.node(4).edges()[1].branch_length, Some(0.1));
 
         assert_eq!(tree.postorder(4), vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_edge_postorder() {
+        let newick = "(A:0.5,(B:0.8,C:0.2)D:0.1)R;";
+        let builder = SimpleTreeBuilder::new();
+        let mut parser = Parser::new(newick.as_bytes(), builder);
+        let result = parser.parse().expect("Parsing failed.");
+        let tree = result.expect("Parser returned no tree.");
+
+        let postorder_edges: Vec<_> = tree.edge_postorder(4).collect();
+        assert_eq!(postorder_edges.len(), 5);
+        assert_eq!(tree.node(postorder_edges[0].0).label, Some(String::from("R")));
+        assert_eq!(tree.node(postorder_edges[0].1.target).label, Some(String::from("A")));
+        assert_eq!(postorder_edges[0].1.branch_length, Some(0.5));
+        assert_eq!(tree.node(postorder_edges[1].0).label, Some(String::from("D")));
+        assert_eq!(tree.node(postorder_edges[1].1.target).label, Some(String::from("B")));
+        assert_eq!(postorder_edges[1].1.branch_length, Some(0.8));
+        assert_eq!(tree.node(postorder_edges[2].0).label, Some(String::from("D")));
+        assert_eq!(tree.node(postorder_edges[2].1.target).label, Some(String::from("C")));
+        assert_eq!(postorder_edges[2].1.branch_length, Some(0.2));
+        assert_eq!(tree.node(postorder_edges[3].0).label, Some(String::from("R")));
+        assert_eq!(tree.node(postorder_edges[3].1.target).label, Some(String::from("D")));
+        assert_eq!(postorder_edges[3].1.branch_length, Some(0.1));
+        assert_eq!(tree.node(postorder_edges[4].0).label, Some(String::from("R")));
+        assert_eq!(tree.node(postorder_edges[4].1.target).label, Some(String::from("R")));
+        assert_eq!(postorder_edges[4].1.branch_length, None);
     }
 }
