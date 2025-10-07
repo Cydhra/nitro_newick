@@ -29,6 +29,7 @@ pub type TraversalOrder = [NodeId];
 pub struct NTree {
     nodes: Vec<TreeNode>,
     virtual_root: Option<DirectedEdge>,
+    tip_count: usize,
 }
 
 impl NTree {
@@ -37,6 +38,7 @@ impl NTree {
         NTree {
             nodes: Vec::new(),
             virtual_root: None,
+            tip_count: 0,
         }
     }
 
@@ -46,6 +48,7 @@ impl NTree {
         NTree {
             nodes: Vec::with_capacity(capacity),
             virtual_root: None,
+            tip_count: 0,
         }
     }
 
@@ -126,17 +129,38 @@ impl NTree {
     ///
     /// [`postorder`]: NTree::postorder
     /// [`TraversalOrder`]: TraversalOrder
-    pub fn edge_postorder(&self, root: NodeId) -> impl Iterator<Item=(NodeId, DirectedEdge)> {
+    pub fn edge_postorder(&self, root: NodeId) -> impl Iterator<Item = (NodeId, DirectedEdge)> {
         let mut stack = Vec::with_capacity(self.node_count() << 1);
-        stack.push(((root, root, self.get_tree_support(), self.get_tree_branch_length()), self.get_children(root, root)));
+        stack.push((
+            (
+                root,
+                root,
+                self.get_tree_support(),
+                self.get_tree_branch_length(),
+            ),
+            self.get_children(root, root),
+        ));
         iter::from_fn(move || {
             loop {
-                if let Some(((parent_id, node_id, support, branch_length), mut children)) = stack.pop() {
+                if let Some(((parent_id, node_id, support, branch_length), mut children)) =
+                    stack.pop()
+                {
                     if let Some((child_id, child_support, child_branch_length)) = children.next() {
                         stack.push(((parent_id, node_id, support, branch_length), children));
-                        stack.push(((node_id, *child_id, child_support.clone(), child_branch_length.clone()), self.get_children(node_id, *child_id)));
+                        stack.push((
+                            (
+                                node_id,
+                                *child_id,
+                                child_support.clone(),
+                                child_branch_length.clone(),
+                            ),
+                            self.get_children(node_id, *child_id),
+                        ));
                     } else {
-                        return Some((parent_id, DirectedEdge::new(node_id, support, branch_length)));
+                        return Some((
+                            parent_id,
+                            DirectedEdge::new(node_id, support, branch_length),
+                        ));
                     }
                 } else {
                     return None;
@@ -152,6 +176,11 @@ impl NTree {
         (0..self.node_count()).collect()
     }
 
+    /// The number of tips (usually taxa) in the tree
+    pub fn tip_count(&self) -> usize {
+        self.tip_count
+    }
+
     /// Returns the length of the tree, which is the number of nodes in the tree.
     /// This is equivalent to the `node_count()` method.
     pub fn len(&self) -> usize {
@@ -163,6 +192,7 @@ impl NTree {
 #[derive(Clone, Debug)]
 pub struct TreeNode {
     pub label: Option<String>,
+    tip_index: Option<usize>,
     #[cfg(feature = "smallvec")]
     edges: smallvec::SmallVec<[DirectedEdge; 3]>,
     #[cfg(not(feature = "smallvec"))]
@@ -174,6 +204,7 @@ impl TreeNode {
     pub fn new(label: Option<String>) -> Self {
         TreeNode {
             label,
+            tip_index: None,
             #[cfg(feature = "smallvec")]
             edges: smallvec::SmallVec::new(),
             #[cfg(not(feature = "smallvec"))]
@@ -185,6 +216,7 @@ impl TreeNode {
     pub fn with_capacity(label: Option<String>, capacity: usize) -> Self {
         TreeNode {
             label,
+            tip_index: None,
             #[cfg(feature = "smallvec")]
             edges: smallvec::SmallVec::with_capacity(capacity),
             #[cfg(not(feature = "smallvec"))]
@@ -199,7 +231,12 @@ impl TreeNode {
 
     /// Returns true, if the node is a tip (leaf) node.
     pub fn is_tip(&self) -> bool {
-        self.edges.len() == 1
+        self.tip_index.is_some()
+    }
+
+    /// Returns the index in a contiguous numbering of tips, if the node is a tip.
+    pub fn tip_index(&self) -> Option<usize> {
+        self.tip_index
     }
 }
 
@@ -242,9 +279,7 @@ pub struct SimpleTreeBuilder {
 impl SimpleTreeBuilder {
     /// Creates a new `SimpleTreeBuilder` with no nodes.
     pub fn new() -> Self {
-        SimpleTreeBuilder {
-            tree: NTree::new(),
-        }
+        SimpleTreeBuilder { tree: NTree::new() }
     }
 
     /// Creates a new `SimpleTreeBuilder` with the specified node capacity, ensuring no reallocation
@@ -268,7 +303,13 @@ impl TreeBuilder for SimpleTreeBuilder {
 
     fn add_node(&mut self, label: Option<String>, edge_hint: usize) -> Self::NodeId {
         let node_id = self.tree.nodes.len();
-        self.tree.nodes.push(TreeNode::with_capacity(label, edge_hint));
+        self.tree
+            .nodes
+            .push(TreeNode::with_capacity(label, edge_hint));
+        if edge_hint == 1 {
+            self.tree.nodes[node_id].tip_index = Some(self.tree.tip_count);
+            self.tree.tip_count += 1;
+        }
         node_id
     }
 
@@ -287,7 +328,12 @@ impl TreeBuilder for SimpleTreeBuilder {
             .push(DirectedEdge::new(parent, support, branch_length));
     }
 
-    fn set_virtual_root(&mut self, node: Self::NodeId, support: Option<f64>, branch_length: Option<f64>) {
+    fn set_virtual_root(
+        &mut self,
+        node: Self::NodeId,
+        support: Option<f64>,
+        branch_length: Option<f64>,
+    ) {
         self.tree.virtual_root = Some(DirectedEdge::new(node, support, branch_length));
     }
 }
@@ -307,7 +353,11 @@ impl TreeSerialize for NTree {
         self.virtual_root.as_ref().and_then(|e| e.branch_length)
     }
 
-    fn get_children(&self, parent: Self::NodeId, node: Self::NodeId) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)> {
+    fn get_children(
+        &self,
+        parent: Self::NodeId,
+        node: Self::NodeId,
+    ) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)> {
         self.nodes[node].edges.iter().filter_map(move |edge| {
             if edge.target == parent {
                 return None;
@@ -414,20 +464,86 @@ mod tests {
 
         let postorder_edges: Vec<_> = tree.edge_postorder(4).collect();
         assert_eq!(postorder_edges.len(), 5);
-        assert_eq!(tree.node(postorder_edges[0].0).label, Some(String::from("R")));
-        assert_eq!(tree.node(postorder_edges[0].1.target).label, Some(String::from("A")));
+        assert_eq!(
+            tree.node(postorder_edges[0].0).label,
+            Some(String::from("R"))
+        );
+        assert_eq!(
+            tree.node(postorder_edges[0].1.target).label,
+            Some(String::from("A"))
+        );
         assert_eq!(postorder_edges[0].1.branch_length, Some(0.5));
-        assert_eq!(tree.node(postorder_edges[1].0).label, Some(String::from("D")));
-        assert_eq!(tree.node(postorder_edges[1].1.target).label, Some(String::from("B")));
+        assert_eq!(
+            tree.node(postorder_edges[1].0).label,
+            Some(String::from("D"))
+        );
+        assert_eq!(
+            tree.node(postorder_edges[1].1.target).label,
+            Some(String::from("B"))
+        );
         assert_eq!(postorder_edges[1].1.branch_length, Some(0.8));
-        assert_eq!(tree.node(postorder_edges[2].0).label, Some(String::from("D")));
-        assert_eq!(tree.node(postorder_edges[2].1.target).label, Some(String::from("C")));
+        assert_eq!(
+            tree.node(postorder_edges[2].0).label,
+            Some(String::from("D"))
+        );
+        assert_eq!(
+            tree.node(postorder_edges[2].1.target).label,
+            Some(String::from("C"))
+        );
         assert_eq!(postorder_edges[2].1.branch_length, Some(0.2));
-        assert_eq!(tree.node(postorder_edges[3].0).label, Some(String::from("R")));
-        assert_eq!(tree.node(postorder_edges[3].1.target).label, Some(String::from("D")));
+        assert_eq!(
+            tree.node(postorder_edges[3].0).label,
+            Some(String::from("R"))
+        );
+        assert_eq!(
+            tree.node(postorder_edges[3].1.target).label,
+            Some(String::from("D"))
+        );
         assert_eq!(postorder_edges[3].1.branch_length, Some(0.1));
-        assert_eq!(tree.node(postorder_edges[4].0).label, Some(String::from("R")));
-        assert_eq!(tree.node(postorder_edges[4].1.target).label, Some(String::from("R")));
+        assert_eq!(
+            tree.node(postorder_edges[4].0).label,
+            Some(String::from("R"))
+        );
+        assert_eq!(
+            tree.node(postorder_edges[4].1.target).label,
+            Some(String::from("R"))
+        );
         assert_eq!(postorder_edges[4].1.branch_length, None);
+    }
+
+    #[test]
+    fn test_tip_index() {
+        let newick = "(A,(B,C)D)R;";
+        let builder = SimpleTreeBuilder::new();
+        let mut parser = Parser::new(newick.as_bytes(), builder);
+        let result = parser.parse().expect("Parsing failed.");
+        let tree = result.expect("Parser returned no tree.");
+
+        assert_eq!(tree.node_count(), 5);
+        assert_eq!(tree.tip_count(), 3);
+
+        // test the tip indices are non-repeating
+        assert_ne!(tree.node(0).tip_index, tree.node(1).tip_index);
+        assert_ne!(tree.node(0).tip_index, tree.node(2).tip_index);
+        assert_ne!(tree.node(1).tip_index, tree.node(2).tip_index);
+
+        // test the tip index is contiguous
+        assert!(tree.node(0).tip_index.unwrap() < 3);
+        assert!(tree.node(1).tip_index.unwrap() < 3);
+        assert!(tree.node(2).tip_index.unwrap() < 3);
+    }
+
+    #[test]
+    fn test_root_tip() {
+        let newick = "((A,(B,C)D))R;";
+        let builder = SimpleTreeBuilder::new();
+        let mut parser = Parser::new(newick.as_bytes(), builder);
+        let result = parser.parse().expect("Parsing failed.");
+        let tree = result.expect("Parser returned no tree.");
+
+        assert_eq!(tree.node_count(), 6);
+
+        // test the root is now an additional tip
+        assert_eq!(tree.tip_count(), 4);
     }
 }
