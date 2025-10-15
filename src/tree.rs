@@ -579,4 +579,19 @@ mod tests {
         // test the root is now an additional tip
         assert_eq!(tree.tip_count(), 4);
     }
+
+    #[test]
+    fn test_preorder() {
+        let newick = "(A,(B,C)D)R;";
+        let builder = SimpleTreeBuilder::new();
+        let mut parser = Parser::new(newick.as_bytes(), builder);
+        let result = parser.parse().expect("Parsing failed.");
+        let tree = result.expect("Parser returned no tree.");
+
+        assert_eq!(tree.node_count(), 5);
+        assert_eq!(
+            tree.preorder(tree.virtual_root().unwrap()),
+            vec![4, 0, 3, 1, 2]
+        );
+    }
 }
