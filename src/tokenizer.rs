@@ -118,12 +118,9 @@ impl<R: Read> Tokenizer<R> {
     }
 
     #[inline]
-    fn read_token(&mut self, predicate: fn(&u8) -> bool) -> Result<Cow<[u8]>, TokenizerError> {
+    fn read_token(&mut self, predicate: fn(&u8) -> bool) -> Result<Cow<'_, [u8]>, TokenizerError> {
         let start = self.position;
-        let end = Self::find_token_end(
-            &self.buffer[self.position..self.length],
-            predicate,
-        );
+        let end = Self::find_token_end(&self.buffer[self.position..self.length], predicate);
         self.position += end;
 
         // panic mode: if we reach the end of the buffer, we need to explicitly copy data,
@@ -137,10 +134,7 @@ impl<R: Read> Tokenizer<R> {
             // if we aren't at the end of the stream, we continue to read the float
             if self.length > 0 {
                 let start = self.position;
-                let end = Self::find_token_end(
-                    &self.buffer[self.position..self.length],
-                    predicate,
-                );
+                let end = Self::find_token_end(&self.buffer[self.position..self.length], predicate);
                 self.position += end;
 
                 ensure!(
@@ -311,13 +305,21 @@ mod tests {
         input.push(';');
 
         let mut tokenizer = Tokenizer::new(input.as_bytes());
-        let Ok(paren_left) = tokenizer.next_token() else { panic!("did not find open parenthesis") };
+        let Ok(paren_left) = tokenizer.next_token() else {
+            panic!("did not find open parenthesis")
+        };
         assert_eq!(paren_left, Token::OpenParen);
-        let Ok(paren_right) = tokenizer.next_token() else { panic!("did not find closing parenthesis") };
+        let Ok(paren_right) = tokenizer.next_token() else {
+            panic!("did not find closing parenthesis")
+        };
         assert_eq!(paren_right, Token::CloseParen);
-        let Ok(name_token) = tokenizer.next_token() else { panic!("did not find name") };
+        let Ok(name_token) = tokenizer.next_token() else {
+            panic!("did not find name")
+        };
         assert_eq!(name_token, Token::Name(name));
-        let Ok(semicolon) = tokenizer.next_token() else { panic!("did not find semicolon") };
+        let Ok(semicolon) = tokenizer.next_token() else {
+            panic!("did not find semicolon")
+        };
         assert_eq!(semicolon, Token::Semicolon);
     }
 }
