@@ -104,6 +104,22 @@ impl NTree {
             .push(DirectedEdge::new(parent, support, branch_length));
     }
 
+    /// Remove an edge between two nodes in the tree.
+    /// The assignment of parent and child is arbitrary.
+    /// If the edge does not exist, the operation will do nothing.
+    pub fn remove_edge(&mut self, parent: NodeId, child: NodeId) {
+        self.nodes[parent].edges.retain(|e| e.target != child);
+        self.nodes[child].edges.retain(|e| e.target != parent);
+
+        if let Some(child_edge) = self.nodes[parent].edges.iter().position(|e| e.target == child) {
+            self.nodes[parent].edges.swap_remove(child_edge);
+        }
+
+        if let Some(parent_edge) = self.nodes[child].edges.iter().position(|e| e.target == parent) {
+            self.nodes[child].edges.swap_remove(parent_edge);
+        }
+    }
+
     /// Returns an iterator over the nodes in the tree in the specified traversal order.
     /// The order is a list of node IDs in the order they are to be traversed.
     /// The order is not guaranteed to visit each node, or to visit a node just once.
@@ -392,6 +408,7 @@ impl TreeSerialize for NTree {
 mod tests {
     use super::*;
     use crate::parser::Parser;
+    use std::arch::x86_64::_bittest;
 
     #[test]
     fn test_tree_builder() {
@@ -508,5 +525,36 @@ mod tests {
 
         assert_eq!(tree.node_count(), 5);
         assert_eq!(tree.preorder(tree.virtual_root().unwrap()), vec![4, 0, 3, 1, 2]);
+    }
+
+    #[test]
+    fn test_remove_edge() {
+        let mut builder = SimpleTreeBuilder::new();
+        let node_a = builder.add_node(Some("A".into()), 1);
+        let node_c = builder.add_node(Some("C".into()), 1);
+        let node_b = builder.add_node(Some("B".into()), 2);
+        builder.add_edge(node_b, node_c, None, None);
+
+        let node_root = builder.add_node(Some("root".into()), 2);
+        builder.add_edge(node_root, node_a, None, None);
+        builder.add_edge(node_root, node_b, None, None);
+
+        let mut tree = builder.build();
+
+        assert_eq!(tree.node(node_b).edges.len(), 2);
+        assert_eq!(tree.node(node_a).edges.len(), 1);
+        assert_eq!(tree.node(node_c).edges.len(), 1);
+
+        tree.remove_edge(node_b, node_c);
+
+        assert_eq!(tree.node(node_b).edges.len(), 1);
+        assert_eq!(tree.node(node_a).edges.len(), 1);
+        assert_eq!(tree.node(node_c).edges.len(), 0);
+
+        tree.add_edge(node_a, node_c, None, None);
+
+        assert_eq!(tree.node(node_b).edges.len(), 1);
+        assert_eq!(tree.node(node_a).edges.len(), 2);
+        assert_eq!(tree.node(node_c).edges.len(), 1);
     }
 }
