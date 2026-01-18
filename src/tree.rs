@@ -1,3 +1,4 @@
+use crate::tree::TreeError::{ChildNoParent, DiscordantEdgeData, ParentNoChild};
 use crate::{TreeBuilder, TreeSerialize};
 use std::{iter, mem};
 
@@ -29,6 +30,18 @@ pub type TraversalOrder = [NodeId];
 pub struct NTree {
     nodes: Vec<TreeNode>,
     virtual_root: Option<DirectedEdge>,
+}
+
+#[derive(Debug, Clone)]
+pub enum TreeError {
+    /// Error when removing an edge: Parent has no edge to the specified child.
+    ParentNoChild,
+
+    /// Error when removing an edge: Child has no edge to the specified parent.
+    ChildNoParent,
+
+    /// Edge data of the parent edge and the corresponding child edge are not equal.
+    DiscordantEdgeData,
 }
 
 impl NTree {
@@ -106,18 +119,42 @@ impl NTree {
 
     /// Remove an edge between two nodes in the tree.
     /// The assignment of parent and child is arbitrary.
-    /// If the edge does not exist, the operation will do nothing.
-    pub fn remove_edge(&mut self, parent: NodeId, child: NodeId) {
-        self.nodes[parent].edges.retain(|e| e.target != child);
-        self.nodes[child].edges.retain(|e| e.target != parent);
+    ///
+    /// If the edge does not exist, the operation will return either [ParentNoChild], or
+    /// [ChildNoParent], depending on which condition is found first.
+    /// If the edge exists, but has different metadata between the two directions, a [DiscordantEdgeData]
+    /// error is returned.
+    ///
+    /// If the edge was removed successfully, the branch length and branch support are returned,
+    /// if they existed.
+    pub fn remove_edge(&mut self, parent: NodeId, child: NodeId) -> Result<(Option<f64>, Option<f64>), TreeError> {
+        let branch_len;
+        let branch_support;
 
         if let Some(child_edge) = self.nodes[parent].edges.iter().position(|e| e.target == child) {
+            branch_len = self.nodes[parent].edges[child_edge].branch_length;
+            branch_support = self.nodes[parent].edges[child_edge].support;
+
+            if let Some(parent_edge) = self.nodes[child].edges.iter().position(|e| e.target == parent) {
+                if branch_len != self.nodes[child].edges[parent_edge].branch_length {
+                    return Err(DiscordantEdgeData);
+                }
+
+                if branch_support != self.nodes[child].edges[parent_edge].branch_length {
+                    return Err(DiscordantEdgeData);
+                }
+
+                self.nodes[child].edges.swap_remove(parent_edge);
+            } else {
+                return Err(ChildNoParent);
+            }
+
             self.nodes[parent].edges.swap_remove(child_edge);
+        } else {
+            return Err(ParentNoChild);
         }
 
-        if let Some(parent_edge) = self.nodes[child].edges.iter().position(|e| e.target == parent) {
-            self.nodes[child].edges.swap_remove(parent_edge);
-        }
+        Ok((branch_len, branch_support))
     }
 
     /// Returns an iterator over the nodes in the tree in the specified traversal order.
@@ -408,7 +445,6 @@ impl TreeSerialize for NTree {
 mod tests {
     use super::*;
     use crate::parser::Parser;
-    use std::arch::x86_64::_bittest;
 
     #[test]
     fn test_tree_builder() {
@@ -545,7 +581,7 @@ mod tests {
         assert_eq!(tree.node(node_a).edges.len(), 1);
         assert_eq!(tree.node(node_c).edges.len(), 1);
 
-        tree.remove_edge(node_b, node_c);
+        assert!(tree.remove_edge(node_b, node_c).is_ok());
 
         assert_eq!(tree.node(node_b).edges.len(), 1);
         assert_eq!(tree.node(node_a).edges.len(), 1);
