@@ -130,6 +130,7 @@ impl NTree {
     }
 
     /// Remove an edge between two nodes in the tree.
+    /// This method does a linear search through all edges of the parent.
     /// The assignment of parent and child is arbitrary.
     ///
     /// If the edge does not exist, the operation will return either [ParentNoChild], or
@@ -177,6 +178,36 @@ impl NTree {
         }
 
         Ok((branch_len, branch_support))
+    }
+
+    /// Update the edge support and branch_length of the branch between two nodes.
+    /// This method does a linear search through all edges of the parent.
+    /// The assignment of parent and child is arbitrary.
+    ///
+    /// If the edge does not exist, the operation will return either [ParentNoChild], or
+    /// [ChildNoParent], depending on which condition is found first.
+    pub fn update_edge(
+        &mut self,
+        parent: NodeId,
+        child: NodeId,
+        support: Option<f64>,
+        branch_length: Option<f64>,
+    ) -> Result<(), TreeError> {
+        if let Some(child_edge) = self.nodes[parent].edges.iter().position(|e| e.target == child) {
+            if let Some(parent_edge) = self.nodes[child].edges.iter().position(|e| e.target == parent) {
+                self.nodes[child].edges[parent_edge].support = support;
+                self.nodes[parent].edges[child_edge].support = support;
+
+                self.nodes[child].edges[parent_edge].branch_length = branch_length;
+                self.nodes[parent].edges[child_edge].branch_length = branch_length;
+            } else {
+                return Err(ChildNoParent);
+            }
+        } else {
+            return Err(ParentNoChild);
+        }
+
+        Ok(())
     }
 
     /// Returns an iterator over the nodes in the tree in the specified traversal order.
@@ -614,5 +645,50 @@ mod tests {
         assert_eq!(tree.node(node_b).edges.len(), 1);
         assert_eq!(tree.node(node_a).edges.len(), 2);
         assert_eq!(tree.node(node_c).edges.len(), 1);
+    }
+
+    #[test]
+    fn test_update_edge() {
+        let mut builder = SimpleTreeBuilder::new();
+        let node_a = builder.add_node(Some("A".into()), 1);
+        let node_b = builder.add_node(Some("B".into()), 2);
+
+        let node_root = builder.add_node(Some("root".into()), 2);
+        builder.add_edge(node_root, node_a, None, None);
+        builder.add_edge(node_root, node_b, None, None);
+
+        let mut tree = builder.build();
+
+        assert_eq!(tree.node(node_b).edges.len(), 1);
+        assert!(tree.node(node_b).edges[0].branch_length.is_none());
+
+        assert_eq!(tree.node(node_root).edges.len(), 2);
+        assert!(
+            tree.node(node_root)
+                .edges()
+                .iter()
+                .filter(|e| e.target == node_b)
+                .next()
+                .unwrap()
+                .branch_length
+                .is_none()
+        );
+
+        assert!(tree.update_edge(node_root, node_b, None, Some(0.1)).is_ok());
+
+        assert_eq!(tree.node(node_b).edges.len(), 1);
+        assert_eq!(tree.node(node_b).edges[0].branch_length, Some(0.1));
+
+        assert_eq!(tree.node(node_root).edges.len(), 2);
+        assert_eq!(
+            tree.node(node_root)
+                .edges()
+                .iter()
+                .filter(|e| e.target == node_b)
+                .next()
+                .unwrap()
+                .branch_length,
+            Some(0.1)
+        )
     }
 }
