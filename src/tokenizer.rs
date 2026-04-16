@@ -82,7 +82,7 @@ impl<R: Read> Tokenizer<R> {
 
         let byte = self.buffer[self.position];
         match byte {
-            b'-' | b'.' | b'0'..=b'9' => self.read_float(),
+            b'-' | b'.' | b'0'..=b'9' => self.read_numeric_or_string(),
             b',' => {
                 self.position += 1;
                 Ok(Token::Comma)
@@ -153,20 +153,32 @@ impl<R: Read> Tokenizer<R> {
         Ok(Cow::Borrowed(&self.buffer[start..self.position]))
     }
 
-    /// Reads a float from the input stream, starting at the current position.
-    /// Returns a `Token::Float` if successful, or an error if the float cannot be parsed.
+    /// Reads a numeric-leading literal from the input stream, starting at the current position.
+    /// Returns a `Token::Float` for pure numeric literals and `Token::Name` otherwise.
     ///
     /// If the buffer is exhausted while reading, it will attempt to fill the buffer
-    /// and continue reading. If the end of the stream is reached, it will return a float containing
+    /// and continue reading. If the end of the stream is reached, it will return a literal containing
     /// the data read so far.
     ///
-    /// If the float literal is larger than the buffer size, it will panic.
-    fn read_float(&mut self) -> Result<Token, TokenizerError> {
-        let token = self.read_token(|&b| !(b.is_ascii_digit() || b == b'.' || b == b'-'))?;
-        Ok(Token::Float(
-            String::from_utf8_lossy(&token)
-                .parse()
-                .context(FloatSnafu {})?,
+    /// If the literal is larger than the buffer size, it will panic.
+    fn read_numeric_or_string(&mut self) -> Result<Token, TokenizerError> {
+        let token = self.read_token(|&b| {
+            b.is_ascii_whitespace() || b == b',' || b == b';' || b == b':' || b == b'(' || b == b')'
+        })?;
+
+        if token
+            .iter()
+            .all(|b| b.is_ascii_digit() || *b == b'.' || *b == b'-')
+        {
+            return Ok(Token::Float(
+                String::from_utf8_lossy(&token)
+                    .parse()
+                    .context(FloatSnafu {})?,
+            ));
+        }
+
+        Ok(Token::Name(
+            String::from_utf8_lossy(&token).replace('_', " "),
         ))
     }
 
