@@ -82,7 +82,7 @@ impl<R: Read> Tokenizer<R> {
 
         let byte = self.buffer[self.position];
         match byte {
-            b'-' | b'.' | b'0'..=b'9' => self.read_numeric_or_string(),
+            b'-' | b'.' | b'0'..=b'9' => self.read_numeral_or_string(),
             b',' => {
                 self.position += 1;
                 Ok(Token::Comma)
@@ -161,7 +161,7 @@ impl<R: Read> Tokenizer<R> {
     /// the data read so far.
     ///
     /// If the literal is larger than the buffer size, it will panic.
-    fn read_numeric_or_string(&mut self) -> Result<Token, TokenizerError> {
+    fn read_numeral_or_string(&mut self) -> Result<Token, TokenizerError> {
         let token = self.read_token(|&b| {
             b.is_ascii_whitespace() || b == b',' || b == b';' || b == b':' || b == b'(' || b == b')'
         })?;
