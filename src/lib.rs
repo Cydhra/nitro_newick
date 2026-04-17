@@ -2,6 +2,7 @@ mod tokenizer;
 
 pub mod tree;
 
+mod config;
 pub mod parser;
 pub mod serializer;
 
@@ -14,7 +15,7 @@ pub trait TreeBuilder {
 
     /// The node ID type used to identify nodes in the tree.
     type NodeId: Clone;
-    
+
     /// Build an empty tree structure and reset the builder to its initial state.
     fn build(&mut self) -> Self::Tree;
 
@@ -57,7 +58,11 @@ pub trait TreeSerialize {
     /// Get the children of a node in the tree, given the parent node. The iterator must not
     /// include an edge to the parent node.
     /// The iterator returns tuples of the form (child_node_id, support, branch_length).
-    fn get_children(&self, parent: Self::NodeId, node: Self::NodeId) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)>;
+    fn get_children(
+        &self,
+        parent: Self::NodeId,
+        node: Self::NodeId,
+    ) -> impl Iterator<Item = (&Self::NodeId, Option<f64>, Option<f64>)>;
 
     /// Get the label of a node in the tree.
     fn get_label(&self, node: &Self::NodeId) -> Option<&String>;
