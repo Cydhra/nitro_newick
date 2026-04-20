@@ -1,7 +1,9 @@
 use crate::TreeBuilder;
+use crate::config::Settings;
 use crate::tokenizer::Token::*;
 use crate::tokenizer::{Token, Tokenizer, TokenizerError};
 use snafu::prelude::*;
+use std::fs::read;
 use std::io::Read;
 
 /// Error type for the parser
@@ -37,8 +39,12 @@ pub struct Parser<R: Read, B: TreeBuilder> {
 impl<R: Read, B: TreeBuilder> Parser<R, B> {
     /// Create a new parser instance with the given newick input stream and a tree builder instance.
     pub fn new(reader: R, builder: B) -> Self {
+        Self::with_settings(reader, builder, Settings::default())
+    }
+
+    pub fn with_settings(reader: R, builder: B, settings: Settings) -> Self {
         Parser {
-            tokenizer: Tokenizer::new(reader),
+            tokenizer: Tokenizer::with_settings(reader, settings),
             builder,
             tree_finished: true,
             expect_sibling: false,
