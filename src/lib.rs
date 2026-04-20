@@ -1,4 +1,4 @@
-mod tokenizer;
+pub mod tokenizer;
 
 pub mod tree;
 

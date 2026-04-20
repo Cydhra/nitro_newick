@@ -40,7 +40,7 @@ impl Display for Token {
     }
 }
 
-pub(super) struct Tokenizer<R: Read> {
+pub struct Tokenizer<R: Read> {
     settings: Settings,
     reader: R,
     buffer: Box<[u8; BUFFER_SIZE]>,
@@ -50,11 +50,11 @@ pub(super) struct Tokenizer<R: Read> {
 }
 
 impl<R: Read> Tokenizer<R> {
-    pub(super) fn new(reader: R) -> Self {
+    pub fn new(reader: R) -> Self {
         Self::with_settings(reader, Settings::default())
     }
 
-    pub(super) fn with_settings(reader: R, settings: Settings) -> Self {
+    pub fn with_settings(reader: R, settings: Settings) -> Self {
         Tokenizer {
             reader,
             settings,
@@ -65,7 +65,7 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    pub(super) fn peek(&mut self) -> Result<&Token, TokenizerError> {
+    pub fn peek(&mut self) -> Result<&Token, TokenizerError> {
         if !(self.lookahead.is_some()) {
             let token = self.next_token()?;
             self.lookahead = Some(token);
@@ -74,7 +74,7 @@ impl<R: Read> Tokenizer<R> {
         Ok(self.lookahead.as_ref().unwrap())
     }
 
-    pub(super) fn next_token(&mut self) -> Result<Token, TokenizerError> {
+    pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
         if let Some(token) = self.lookahead.take() {
             return Ok(token);
         }
