@@ -46,7 +46,7 @@ impl<T: TreeSerialize> Serializer<T> {
             match settings.use_quoted_strings {
                 QuotationMode::Always => result.push_str(&format!("'{}'", label.replace('\'', "''"))),
                 QuotationMode::Dynamic => {
-                    if label.contains(|b| b == ' ' || b == '_') {
+                    if label.contains(|b| b == ' ' || b == '_' || b == '\'') {
                         result.push_str(&format!("'{}'", label.replace('\'', "''")))
                     } else {
                         result.push_str(&format!("{}", label.replace(' ', "_")))
@@ -215,15 +215,16 @@ mod tests {
 
         let mut result = String::new();
         Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&"A'B".to_string()), None, None);
-
         assert_eq!("'A''B'", result);
 
         let settings = Settings::default().use_quoted_strings(Dynamic);
-
-        let mut result = String::new();
+        result.clear();
         Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&"A'B_".to_string()), None, None);
-
         assert_eq!("'A''B_'", result);
+
+        result.clear();
+        Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&"A'B".to_string()), None, None);
+        assert_eq!("'A''B'", result);
     }
 
     #[test]
