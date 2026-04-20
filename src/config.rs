@@ -15,6 +15,7 @@ pub enum QuotationMode {
 
 /// Settings for serialization and deserialization. This mostly affects string (de-)serialization
 /// as it is defined ambiguously in the standard.
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub(crate) translate_underscores: bool,
     pub(crate) use_quoted_strings: QuotationMode,
