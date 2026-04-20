@@ -2,7 +2,7 @@ mod tokenizer;
 
 pub mod tree;
 
-mod config;
+pub mod config;
 pub mod parser;
 pub mod serializer;
 
