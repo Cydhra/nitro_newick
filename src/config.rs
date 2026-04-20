@@ -1,4 +1,4 @@
-use crate::config::QuotationMode::Always;
+use crate::config::QuotationMode::*;
 
 /// Serializer behavior for Newick strings.
 pub enum QuotationMode {
@@ -23,7 +23,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             translate_underscores: true,
-            use_quoted_strings: Always,
+            use_quoted_strings: Never,
         }
     }
 }

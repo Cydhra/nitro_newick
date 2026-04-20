@@ -1,4 +1,5 @@
 use crate::TreeSerialize;
+use crate::config::{QuotationMode, Settings};
 use std::iter::Peekable;
 use std::marker::PhantomData;
 
@@ -16,26 +17,43 @@ struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>>
 /// It is used to query the tree structure during serialization.
 pub struct Serializer<T: TreeSerialize> {
     tree_type: PhantomData<T>,
+    settings: Settings,
 }
 
 impl<T: TreeSerialize> Serializer<T> {
     /// Creates a new instance of the `Serializer`.
     pub fn new() -> Self {
+        Self::with_settings(Settings::default())
+    }
+
+    pub fn with_settings(settings: Settings) -> Self {
         Serializer {
             tree_type: PhantomData,
+            settings,
         }
     }
 
     /// Helper function to push node data into the result string.
     fn push_node_data(
+        settings: &Settings,
         result: &mut String,
         label: Option<&String>,
         support: Option<f64>,
         branch_length: Option<f64>,
     ) {
         if let Some(label) = label {
-            // TODO properly sanitize and encode the label
-            result.push_str(&format!("{}", label.replace(' ', "_")));
+            // todo sanitize input (remove illegal new-lines, etc)
+            match settings.use_quoted_strings {
+                QuotationMode::Always => result.push_str(&format!("'{}'", label)),
+                QuotationMode::Dynamic => {
+                    if label.contains(|b| b == ' ' || b == '_') {
+                        result.push_str(&format!("'{}'", label))
+                    } else {
+                        result.push_str(&format!("{}", label.replace(' ', "_")))
+                    }
+                }
+                QuotationMode::Never => result.push_str(&format!("{}", label.replace(' ', "_"))),
+            }
         } else if let Some(support) = support {
             result.push_str(&format!("{}", support));
         }
@@ -58,6 +76,7 @@ impl<T: TreeSerialize> Serializer<T> {
 
         if children.peek().is_none() {
             Self::push_node_data(
+                &self.settings,
                 &mut result,
                 tree.get_label(root.as_ref().unwrap()),
                 tree.get_tree_support(),
@@ -94,6 +113,7 @@ impl<T: TreeSerialize> Serializer<T> {
                     continue;
                 } else {
                     Self::push_node_data(
+                        &self.settings,
                         &mut result,
                         tree.get_label(child_id),
                         support,
@@ -103,7 +123,13 @@ impl<T: TreeSerialize> Serializer<T> {
             } else {
                 let node = stack.pop().unwrap();
                 result.push(')');
-                Self::push_node_data(&mut result, node.label, node.support, node.branch_length);
+                Self::push_node_data(
+                    &self.settings,
+                    &mut result,
+                    node.label,
+                    node.support,
+                    node.branch_length,
+                );
             }
 
             if let Some(parent) = stack.last_mut() {
@@ -158,9 +184,7 @@ mod tests {
         let stream = File::open(path).expect("Could not open file");
         let mut newick = String::new();
         let mut reader = std::io::BufReader::new(stream);
-        reader
-            .read_to_string(&mut newick)
-            .expect("Could not read file");
+        reader.read_to_string(&mut newick).expect("Could not read file");
         let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
         let tree = parser.parse().unwrap().expect("Parse Error");
         let serializer = Serializer::<NTree>::new();
