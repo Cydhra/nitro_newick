@@ -3,26 +3,23 @@ use crate::{TreeBuilder, TreeSerialize};
 use std::fmt::{Display, Formatter};
 use std::{iter, mem};
 
+/// The type identifying nodes in a tree. Node identifiers must not change during a tree's lifetime.
 pub type NodeId = usize;
 
 /// A traversal order of the nodes in the tree.
 /// This is a list of node IDs in the order they are to be traversed.
-/// The order is arbitrary and can be used for various purposes, such as
+/// The order is arbitrary and the type can be used for various purposes, such as
 /// depth-first search or breadth-first search.
-/// The order is not guaranteed to visit each node, or to visit a node just once.
+/// Any given order is not guaranteed to visit each node, or to visit a node just once.
 pub type TraversalOrder = [NodeId];
 
 /// A simple (unrooted) tree structure.
-/// The tree is represented as a vector of nodes, where each node contains a label and a list of
-/// edges.
-/// The edges are represented as directed edges, meaning each edge exists twice: once for each
-/// direction.
+/// The tree is represented as a vector of nodes, where each node contains a label and a list of edges.
+/// The edges are directed edges, meaning each edge exists twice: once for each direction.
 /// Consequently, modifications to the tree topology require finding and modifying both edges.
 ///
-/// The tree can be unrooted, in which case a virtual root is used, which points to one of the
-/// tree's nodes.
-/// This is why the tree has each edge twice, as (re-)rooting the tree changes the traversal direction
-/// of some edges.
+/// The tree can be unrooted, in which case a virtual root is used, which points to one of the tree's nodes.
+/// Rerooting the tree changes the traversal direction of some edges which is trivial thanks to the doubly-connected nodes.
 ///
 /// The tree does not contain any additional information that cannot be stored in the newick format.
 /// Consequently, the structure is both `Send` and `Sync`, and parsing from and serializing to newick
@@ -33,6 +30,8 @@ pub struct NTree {
     virtual_root: Option<DirectedEdge>,
 }
 
+/// Various types of errors which may come up during tree operations.
+/// A well-formed tree can only throw errors if the query is malformed (e.g., connecting an edge with a node that does not exist).
 #[derive(Debug, Clone)]
 pub enum TreeError {
     /// Error when removing an edge: Parent has no edge to the specified child.
@@ -43,14 +42,28 @@ pub enum TreeError {
 
     /// Edge data of the parent edge and the corresponding child edge are not equal.
     DiscordantEdgeData {
+        /// The branch length stored in the edge pointing toward the child node
+        /// (where the child node is either arbitrary or defined by the method call that produced the error).
         branch_len_down: Option<f64>,
+
+        /// The branch length stored in the edge pointing toward the parent node
+        /// (where the parent node is either arbitrary or defined by the method call that produced the error).
         branch_len_up: Option<f64>,
+
+        /// The branch support stored in the edge pointing toward the child node
+        /// (where the child node is either arbitrary or defined by the method call that produced the error).
         branch_support_down: Option<f64>,
+
+        /// The branch support stored in the edge pointing toward the parent node
+        /// (where the parent node is either arbitrary or defined by the method call that produced the error).
         branch_support_up: Option<f64>,
     },
 
     /// Error when referencing a node that is not in the tree.
-    InvalidNode { node_id: NodeId },
+    InvalidNode {
+        /// The invalid id
+        node_id: NodeId,
+    },
 }
 
 impl Display for TreeError {
@@ -213,6 +226,28 @@ impl NTree {
         Ok(())
     }
 
+    // TODO add handling for the edge case
+    /// Reroots the tree.
+    /// This does not change the tree topology, it solely moves the virtual root to a different node.
+    ///
+    /// # Parameters
+    /// - `node_id` id of the new root node.
+    ///   The new virtual root will keep the support and branch length values associated with the virtual root before.
+    ///   If the tree is unconnected,
+    ///   this will move the support value and branch length to the connected component of the new root.
+    ///
+    /// # Edge Cases
+    /// If the node that is chosen as the virtual root has a label,
+    /// Newick cannot represent the resulting tree if the virtual root has a branch support value.
+    /// This does not affect this method, since the internal representation can represent this case.
+    /// It will create a conflict only if the tree is serialized to Newick.
+    /// The behavior of the serializer in this conflict is currently unspecified.
+    ///
+    /// # Result
+    /// Returns an empty `Ok()` unless the given `node_id` is invalid.
+    /// In this case it will return an [`Err(InvalidNode)`] error.
+    ///
+    /// [`Err(InvalidNode)`]: TreeError::InvalidNode
     pub fn reroot(&mut self, node_id: NodeId) -> Result<(), TreeError> {
         if self.is_empty() {
             Err(TreeError::InvalidNode { node_id })
@@ -362,6 +397,11 @@ impl NTree {
 /// A node in the tree.
 #[derive(Clone, Debug)]
 pub struct TreeNode {
+    /// Node string label.
+    /// If the tree was loaded from Newick, this label has been decoded according to the parser settings,
+    /// and it may contain white spaces and Newick characters.
+    /// The branch support value of the branch that leads into this node from the root cannot be stored
+    /// in Newick if this node has a label.
     pub label: Option<String>,
     #[cfg(feature = "smallvec")]
     edges: smallvec::SmallVec<[DirectedEdge; 3]>,
@@ -409,7 +449,18 @@ impl TreeNode {
 #[derive(Clone, Debug)]
 pub struct DirectedEdge {
     target: NodeId,
+
+    // TODO we probably don't need this public
+    /// Branch support value.
+    /// Newick stores these at nodes, but during parsing the support value is assigned to the edge.
+    /// If the node that this support value belongs to (the node closer to the leaves with respect to the tree root)
+    /// has a node label, this branch support value cannot be represented in Newick.
+    /// Note that changing the support value must be mirrored on the reverse edge, otherwise the tree is malformed.
     pub support: Option<f64>,
+
+    // TODO we probably don't need this public
+    /// Length of the branch.
+    /// Note that changing the length must be mirrored on the reverse edge, otherwise the tree is malformed.
     pub branch_length: Option<f64>,
 }
 
