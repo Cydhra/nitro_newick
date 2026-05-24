@@ -198,7 +198,7 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
                     if let Some(children) = stack.last_mut() {
                         // there has to be at least one more node, but expect_sibling must be already
                         // set to true at this point
-                        debug_assert!(self.expect_sibling == true);
+                        debug_assert!(self.expect_sibling);
 
                         children.push((node_id, None, None));
                     } else {

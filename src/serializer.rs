@@ -15,6 +15,7 @@ struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>>
 /// A serializer for trees in Newick format.
 /// This struct is generic over the tree type `T`, which must implement the `TreeSerialize` trait.
 /// It is used to query the tree structure during serialization.
+#[derive(Default)]
 pub struct Serializer<T: TreeSerialize> {
     tree_type: PhantomData<T>,
     settings: Settings,
@@ -46,13 +47,13 @@ impl<T: TreeSerialize> Serializer<T> {
             match settings.use_quoted_strings {
                 QuotationMode::Always => result.push_str(&format!("'{}'", label.replace('\'', "''"))),
                 QuotationMode::Dynamic => {
-                    if label.contains(|b| b == ' ' || b == '_' || b == '\'') {
+                    if label.contains([' ', '_', '\'']) {
                         result.push_str(&format!("'{}'", label.replace('\'', "''")))
                     } else {
-                        result.push_str(&format!("{}", label.replace(' ', "_")))
+                        result.push_str(&label.replace(' ', "_"))
                     }
                 }
-                QuotationMode::Never => result.push_str(&format!("{}", label.replace(' ', "_"))),
+                QuotationMode::Never => result.push_str(&label.replace(' ', "_")),
             }
         } else if let Some(support) = support {
             result.push_str(&format!("{}", support));
