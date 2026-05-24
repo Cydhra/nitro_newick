@@ -762,6 +762,6 @@ mod tests {
         tree.reroot(a1).expect("failed to reroot to A1");
 
         let reroot_newick = Serializer::with_settings(Settings::default().use_quoted_strings(Never)).serialize(&tree);
-        assert_eq!(reroot_newick, "(A2,((B1,B2)20,((C1,C2)30,(D1,D2)40)30)10)A1;")
+        assert_eq!(reroot_newick, "((A2,((B1,B2)20,((C1,C2)30,(D1,D2)40)30)10))A1;")
     }
 }
