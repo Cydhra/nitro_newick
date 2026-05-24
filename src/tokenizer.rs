@@ -6,31 +6,65 @@ use std::io::Read;
 
 const BUFFER_SIZE: usize = 16 * 1024;
 
-/// Error type for the tokenizer
+/// Error type for the tokenizer.
 #[derive(Debug, Snafu)]
 pub enum TokenizerError {
     /// Error while reading from the input reader
     #[snafu(display("Could not read input stream"))]
-    InputError { source: std::io::Error },
+    InputError {
+        /// IO Error which produced this error in the tokenizer.
+        source: std::io::Error,
+    },
 
     /// Error while parsing a float
     #[snafu(display("Invalid float value"))]
-    FloatError { source: std::num::ParseFloatError },
+    FloatError {
+        /// Parser error in the [`FromStr`] implementation of `f64` which caused this error in the
+        /// tokenizer.
+        ///
+        /// [`FromStr`]: std::str::FromStr
+        source: std::num::ParseFloatError,
+    },
 
-    /// Error while trying to read structured input (but not a float)
+    /// General error while trying to read structured input (but not a float),
+    /// not caused by an underlying component.
     #[snafu(display("Cannot parse input: {reason}"))]
-    ParseError { reason: String },
+    ParseError {
+        /// Human-readable reason for the tokenizer error.
+        reason: String,
+    },
 }
 
+/// Newick token types, produced by the [`Tokenizer`]
+///
+/// [`Tokenizer`]: Tokenizer
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
+    /// Floating point number.
+    /// Not the full range of possible floating point serializations is supported;
+    /// only floats built from digits (`0-9`), minus (`-`), and dots (`.`) can be parsed.
     Float(f64),
+
+    /// Any string, already decoded according to the parser settings (i.e., the string in this
+    /// variant is already the correct string with quotation marks removed and underscores replaced).
     Name(String),
+
+    /// A comma (not part of a quoted string).
     Comma,
+
+    /// An opening parenthesis (not part of a quoted string).
     OpenParen,
+
+    /// A closing parenthesis (not part of a quoted string).
     CloseParen,
+
+    /// A colon (not part of a quoted string).
     Colon,
+
+    /// A semicolon (not part of a quoted string).
     Semicolon,
+
+    /// End of the input stream.
     End,
 }
 
@@ -40,6 +74,31 @@ impl Display for Token {
     }
 }
 
+/// Reads a [readable] stream and converts it into Newick tokens.
+/// Tokens are read from the instance with [`next_token`].
+///
+/// To generate the tokens, the `Tokenizer` calls an underlying parser for floating point numbers.
+/// Newick strings are also already decoded; the generated tokens already contain clear-text strings
+/// with the Newick encoding reversed.
+///
+/// ```
+/// use nitro_newick::tokenizer::{Tokenizer, Token};
+/// use nitro_newick::tokenizer::Token::*;
+///
+/// let newick = "(A, B);";
+/// let mut tokenizer = Tokenizer::new(newick.as_bytes());
+/// let tokens = vec![
+///     tokenizer.next_token().unwrap(), tokenizer.next_token().unwrap(), tokenizer.next_token().unwrap(),
+///     tokenizer.next_token().unwrap(), tokenizer.next_token().unwrap(), tokenizer.next_token().unwrap(),
+///     tokenizer.next_token().unwrap(),
+/// ];
+///
+/// assert_eq!(tokens, vec![OpenParen, Name("A".into()), Comma, Name("B".into()), CloseParen, Semicolon, End]);
+/// ```
+///
+/// [readable]: Read
+/// [`next_token`]: Tokenizer::next_token
+#[derive(Clone, Debug)]
 pub struct Tokenizer<R: Read> {
     settings: Settings,
     reader: R,
@@ -50,10 +109,39 @@ pub struct Tokenizer<R: Read> {
 }
 
 impl<R: Read> Tokenizer<R> {
+    /// Create a tokenizer from a [readable] source with default settings.
+    ///
+    /// # Example
+    /// ```
+    /// # use nitro_newick::tokenizer::{Tokenizer, Token};
+    ///
+    /// let newick = "(((A1,A2)10,(B1,B2)20)30,(C1,C2)30,(D1,D2)40);";
+    /// let mut tokenizer = Tokenizer::new(newick.as_bytes());
+    ///
+    /// assert_eq!(tokenizer.next_token().unwrap(), Token::OpenParen);
+    /// ```
+    ///
+    /// [readable]: Read
     pub fn new(reader: R) -> Self {
         Self::with_settings(reader, Settings::default())
     }
 
+    /// Create a tokenizer from a [readable] source with custom [`Settings`].
+    ///
+    /// # Example
+    /// ```
+    /// # use nitro_newick::config::Settings;
+    /// # use nitro_newick::tokenizer::{Tokenizer, Token};
+    ///
+    /// let newick = "A_B_C";
+    /// let mut tokenizer =
+    ///     Tokenizer::with_settings(newick.as_bytes(), Settings::default().translate_underscores(false));
+    ///
+    /// assert_eq!(tokenizer.next_token().unwrap(), Token::Name("A_B_C".to_owned()));
+    /// ```
+    ///
+    /// [readable]: Read
+    /// [`Settings`]: Settings
     pub fn with_settings(reader: R, settings: Settings) -> Self {
         Tokenizer {
             reader,
@@ -65,6 +153,19 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
+    /// Get the next token in the token stream without consuming it.
+    ///
+    /// # Example
+    /// ```
+    /// # use nitro_newick::config::Settings;
+    /// # use nitro_newick::tokenizer::{Tokenizer, Token};
+    ///
+    /// let newick = "A_B_C";
+    /// let mut tokenizer = Tokenizer::new(newick.as_bytes());
+    ///
+    /// assert_eq!(*tokenizer.peek().unwrap(), Token::Name("A B C".to_owned()));
+    /// assert_eq!(*tokenizer.peek().unwrap(), Token::Name("A B C".to_owned()));
+    /// ```
     pub fn peek(&mut self) -> Result<&Token, TokenizerError> {
         if !(self.lookahead.is_some()) {
             let token = self.next_token()?;
@@ -74,6 +175,19 @@ impl<R: Read> Tokenizer<R> {
         Ok(self.lookahead.as_ref().unwrap())
     }
 
+    /// Get the next token in the token stream and advance the stream beyond it.
+    ///
+    /// # Example
+    /// ```
+    /// # use nitro_newick::config::Settings;
+    /// # use nitro_newick::tokenizer::{Tokenizer, Token};
+    ///
+    /// let newick = "A_B_C";
+    /// let mut tokenizer = Tokenizer::new(newick.as_bytes());
+    ///
+    /// assert_eq!(tokenizer.next_token().unwrap(), Token::Name("A B C".to_owned()));
+    /// assert_eq!(tokenizer.next_token().unwrap(), Token::End);
+    /// ```
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
         if let Some(token) = self.lookahead.take() {
             return Ok(token);
