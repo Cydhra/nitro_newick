@@ -6,7 +6,21 @@ use std::marker::PhantomData;
 /// Characters not allowed in unquoted Newick strings since they have meaning in Newick itself.
 /// Strings containing only whitespace may be encoded by replacing white space with underscores.
 /// Strings containing any of the other characters must be quoted.
+///
+/// The reserved characters are: `_`, `'`, `;`, `,`, `(`, `)`, `:`, `[`, `]`, and space.
+/// Space can be handled differently than the other characters, see [`QuotationMode`].
+///
+/// [`QuotationMode`]: QuotationMode
 pub const NEWICK_RESERVED_CHARACTERS: [char; 10] = [' ', '_', '\'', ';', ',', '(', ')', ':', '[', ']'];
+
+/// Characters not allowed in unquoted Newick strings since they have meaning in Newick itself, other than whitespace.
+/// Spaces have no meaning outside of strings other than to split tokens.
+/// They can be handled differently than the other characters, see [`QuotationMode`].
+///
+/// The reserved characters are: `_`, `'`, `;`, `,`, `(`, `)`, `:`, `[`, `]`.
+///
+/// [`QuotationMode`]: QuotationMode
+pub const NEWICK_RESERVED_CHARACTERS_NO_SPACE: [char; 9] = ['_', '\'', ';', ',', '(', ')', ':', '[', ']'];
 
 /// A struct representing a node in the tree during serialization.
 struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>> {
@@ -51,11 +65,18 @@ impl<T: TreeSerialize> Serializer<T> {
             // todo sanitize input (remove illegal new-lines, etc)
             match settings.use_quoted_strings {
                 QuotationMode::Always => result.push_str(&format!("'{}'", label.replace('\'', "''"))),
+                QuotationMode::PreferUnquoted => {
+                    if label.contains(NEWICK_RESERVED_CHARACTERS_NO_SPACE) {
+                        result.push_str(&format!("'{}'", label.replace('\'', "''")))
+                    } else {
+                        result.push_str(&label.replace(' ', "_"))
+                    }
+                }
                 QuotationMode::Dynamic => {
                     if label.contains(NEWICK_RESERVED_CHARACTERS) {
                         result.push_str(&format!("'{}'", label.replace('\'', "''")))
                     } else {
-                        result.push_str(&label.replace(' ', "_"))
+                        result.push_str(&label)
                     }
                 }
                 QuotationMode::Never => result.push_str(&label.replace(NEWICK_RESERVED_CHARACTERS, "_")),
@@ -155,7 +176,7 @@ impl<T: TreeSerialize> Serializer<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::QuotationMode::{Always, Dynamic, Never};
+    use crate::config::QuotationMode::{Always, Dynamic, Never, PreferUnquoted};
     use crate::parser::Parser;
     use crate::tree::{NTree, SimpleTreeBuilder};
     use rstest::rstest;
@@ -244,27 +265,49 @@ mod tests {
         assert_eq!("AB", result);
     }
 
+    // verify that prefer-unquoted quotation escapes all illegal characters.
+    fn test_auto_quotation(mode: QuotationMode, char: &str) {
+        let settings = Settings::default().use_quoted_strings(mode);
+        let mut result = String::new();
+        Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&char.to_string()), None, None);
+        assert_eq!(format!("'{char}'"), result);
+    }
+
     #[test]
-    fn test_illegal_characters() {
-        // verify that dynamic quotation escapes all illegal characters (except space which can but does not have to be quoted if not accompanied by other illegal characters).
-        fn test_illegal_string(char: &str) {
-            let settings = Settings::default().use_quoted_strings(Dynamic);
-            let mut result = String::new();
-            Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&char.to_string()), None, None);
-            assert_eq!(format!("'{char}'"), result);
-        }
+    fn test_illegal_characters_prefer_unquoted() {
+        test_auto_quotation(PreferUnquoted, "[");
+        test_auto_quotation(PreferUnquoted, "]");
+        test_auto_quotation(PreferUnquoted, "(");
+        test_auto_quotation(PreferUnquoted, ")");
+        test_auto_quotation(PreferUnquoted, ";");
+        test_auto_quotation(PreferUnquoted, ":");
+        test_auto_quotation(PreferUnquoted, ",");
+        test_auto_quotation(PreferUnquoted, "_");
 
-        test_illegal_string("[");
-        test_illegal_string("]");
-        test_illegal_string("(");
-        test_illegal_string(")");
-        test_illegal_string(";");
-        test_illegal_string(":");
-        test_illegal_string(",");
-        test_illegal_string("_");
+        test_auto_quotation(PreferUnquoted, "A_A");
+        test_auto_quotation(PreferUnquoted, "AAAA;");
+        test_auto_quotation(PreferUnquoted, "[ ]");
 
-        test_illegal_string("A_A");
-        test_illegal_string("AAAA;");
-        test_illegal_string("[ ]");
+        let settings = Settings::default().use_quoted_strings(PreferUnquoted);
+        let mut result = String::new();
+        Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&" ".to_string()), None, None);
+        assert_eq!("_".to_string(), result);
+    }
+
+    #[test]
+    fn test_illegal_characters_prefer_quoted() {
+        test_auto_quotation(Dynamic, "[");
+        test_auto_quotation(Dynamic, "]");
+        test_auto_quotation(Dynamic, "(");
+        test_auto_quotation(Dynamic, ")");
+        test_auto_quotation(Dynamic, ";");
+        test_auto_quotation(Dynamic, ":");
+        test_auto_quotation(Dynamic, ",");
+        test_auto_quotation(Dynamic, "_");
+        test_auto_quotation(Dynamic, " ");
+
+        test_auto_quotation(Dynamic, "A_A");
+        test_auto_quotation(Dynamic, "AAAA;");
+        test_auto_quotation(Dynamic, "[ ]");
     }
 }

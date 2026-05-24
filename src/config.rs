@@ -1,15 +1,36 @@
 use crate::config::QuotationMode::*;
 
 /// Serializer behavior for Newick strings.
+/// Since there is ambiguity on how to encode strings, the behavior can be changed.
+/// Note that some behaviors violate the Newick standard.
+///
+/// Strings are written verbatim into the Newick representation, unless the string contains a space, or any character reserved by the Newick standard.
+/// Spaces can be replaced with underscores, unless other [reserved characters] or underscores are present.
+/// If reserved characters are present, a string must be enclosed in single quotes.
+/// Single quotes in the string are escaped by doubling them (`''`).
+///
+/// [reserved characters]: crate::serializer::NEWICK_RESERVED_CHARACTERS
 #[derive(Debug, Copy, Clone)]
 pub enum QuotationMode {
     /// Always use quoted strings.
     Always,
 
-    /// Use unquoted strings except if the string contains a space or an underscore.
+    /// Use unquoted strings unless a [reserved character] (other than space) is present.
+    /// Spaces are replaced with underscores.
+    ///
+    /// [reserved character]: crate::serializer::NEWICK_RESERVED_CHARACTERS_NO_SPACE
+    PreferUnquoted,
+
+    /// Use unquoted strings unless the string contains a space, or another [reserved character].
+    /// Since labels containing spaces are quoted, spaces are not replaced by underscores.
+    ///
+    /// [reserved character]: crate::serializer::NEWICK_RESERVED_CHARACTERS
     Dynamic,
 
-    /// Never use quoted strings, replace all spaces with underscores.
+    /// Never use quoted strings, replace all [reserved characters] with underscores.
+    /// This does not adhere to the Newick standard and will irrecoverably change labels that contain [reserved characters] other than space.
+    ///
+    /// [reserved characters]: crate::serializer::NEWICK_RESERVED_CHARACTERS
     Never,
 }
 
