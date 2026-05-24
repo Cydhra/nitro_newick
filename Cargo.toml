@@ -2,7 +2,12 @@
 name = "nitro-newick"
 version = "0.1.0"
 edition = "2024"
+description = "A parser and minimal datastructure for unrooted phylogenetic trees in the Newick format."
+readme = "README.md"
+repository = "https://github.com/Cydhra/nitro_newick/"
 license = "MIT OR Apache-2.0"
+keywords = ["bio", "bioinformatics", "phylogenetics", "newick", "tree"]
+categories = ["parser-implementations", "data-structures", "science", "science::bioinformatics"]
 
 [dependencies]
 snafu = "0.9.0"
