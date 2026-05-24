@@ -751,7 +751,7 @@ mod tests {
     #[test]
     fn test_rerooting_support() {
         // test whether edge support is correctly assigned to nodes after rerooting
-        let newick = "(((A1, A2)10,(B1,B2)20)30,(C1,C2)30,(D1,D2)40);";
+        let newick = "(((A1,A2)10,(B1,B2)20)30,(C1,C2)30,(D1,D2)40);";
         let builder = SimpleTreeBuilder::new();
         let mut parser = Parser::new(newick.as_bytes(), builder);
         let mut tree = parser.parse().expect("could not read newick").unwrap();
@@ -759,9 +759,16 @@ mod tests {
         let a1 = (0..tree.nodes.len())
             .find(|id| tree.node(*id).label == Some("A1".into()))
             .expect("cannot find leaf A1");
+
+        let original_root = tree.virtual_root().unwrap();
+
         tree.reroot(a1).expect("failed to reroot to A1");
 
         let reroot_newick = Serializer::with_settings(Settings::default().use_quoted_strings(Never)).serialize(&tree);
-        assert_eq!(reroot_newick, "((A2,((B1,B2)20,((C1,C2)30,(D1,D2)40)30)10))A1;")
+        assert_eq!(reroot_newick, "((A2,((B1,B2)20,((C1,C2)30,(D1,D2)40)30)10))A1;");
+
+        tree.reroot(original_root).unwrap();
+        let reroot_newick = Serializer::with_settings(Settings::default().use_quoted_strings(Never)).serialize(&tree);
+        assert_eq!(reroot_newick, newick);
     }
 }
