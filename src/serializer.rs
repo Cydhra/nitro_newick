@@ -3,6 +3,11 @@ use crate::config::{QuotationMode, Settings};
 use std::iter::Peekable;
 use std::marker::PhantomData;
 
+/// Characters not allowed in unquoted Newick strings since they have meaning in Newick itself.
+/// Strings containing only whitespace may be encoded by replacing white space with underscores.
+/// Strings containing any of the other characters must be quoted.
+pub const NEWICK_RESERVED_CHARACTERS: [char; 10] = [' ', '_', '\'', ';', ',', '(', ')', ':', '[', ']'];
+
 /// A struct representing a node in the tree during serialization.
 struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>> {
     id: &'a N,
@@ -47,13 +52,13 @@ impl<T: TreeSerialize> Serializer<T> {
             match settings.use_quoted_strings {
                 QuotationMode::Always => result.push_str(&format!("'{}'", label.replace('\'', "''"))),
                 QuotationMode::Dynamic => {
-                    if label.contains([' ', '_', '\'']) {
+                    if label.contains(NEWICK_RESERVED_CHARACTERS) {
                         result.push_str(&format!("'{}'", label.replace('\'', "''")))
                     } else {
                         result.push_str(&label.replace(' ', "_"))
                     }
                 }
-                QuotationMode::Never => result.push_str(&label.replace(' ', "_")),
+                QuotationMode::Never => result.push_str(&label.replace(NEWICK_RESERVED_CHARACTERS, "_")),
             }
         } else if let Some(support) = support {
             result.push_str(&format!("{}", support));
@@ -237,5 +242,29 @@ mod tests {
         Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&"AB".to_string()), None, None);
 
         assert_eq!("AB", result);
+    }
+
+    #[test]
+    fn test_illegal_characters() {
+        // verify that dynamic quotation escapes all illegal characters (except space which can but does not have to be quoted if not accompanied by other illegal characters).
+        fn test_illegal_string(char: &str) {
+            let settings = Settings::default().use_quoted_strings(Dynamic);
+            let mut result = String::new();
+            Serializer::<NTree>::push_node_data(&settings, &mut result, Some(&char.to_string()), None, None);
+            assert_eq!(format!("'{char}'"), result);
+        }
+
+        test_illegal_string("[");
+        test_illegal_string("]");
+        test_illegal_string("(");
+        test_illegal_string(")");
+        test_illegal_string(";");
+        test_illegal_string(":");
+        test_illegal_string(",");
+        test_illegal_string("_");
+
+        test_illegal_string("A_A");
+        test_illegal_string("AAAA;");
+        test_illegal_string("[ ]");
     }
 }
