@@ -10,17 +10,38 @@ use std::io::Read;
 pub enum ParseError {
     /// Error while reading from the input stream
     #[snafu(display("Error while reading from input stream: {source}"))]
-    InputError { source: TokenizerError },
+    InputError {
+        /// Underlying tokenizer error. This may contain more underlying errors.
+        source: TokenizerError,
+    },
 
     /// Unexpected token in the input stream
     #[snafu(display("Unexpected token: expected {} but found {:?}: {}", expected.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", "), found, reason))]
     UnexpectedToken {
+        /// List of tokens that were expected.
         expected: Vec<Token>,
+
+        /// The token that was found instead.
         found: Token,
+
+        /// Additional, human-readable reason behind the parse error which may contain contextual information.
         reason: String,
     },
 }
 
+/// Newick parser that transforms a token stream into one or more trees.
+/// Each call to [`parse`] yields one tree, until an [`End`] token is encountered.
+/// There is no recovery built into the Parser, meaning, if an error is encountered,
+/// subsequent calls to the parser attempt to parse a new tree directly behind the erroneous token.
+///
+/// The parser constructs the tree by calling the provided implementation of [`TreeBuilder`].
+/// A [`SimpleTreeBuilder`] is available to parse the tree into a minimal data structure that can represent all data from the Newick file.
+/// Alternative implementations can be used to construct other tree data types.
+///
+/// [`parse`]: Parser::parse
+/// [`End`]: End
+/// [`TreeBuilder`]: TreeBuilder
+/// [`SimpleTreeBuilder`]: crate::tree::SimpleTreeBuilder
 pub struct Parser<R: Read, B: TreeBuilder> {
     tokenizer: Tokenizer<R>,
     builder: B,
@@ -36,11 +57,12 @@ pub struct Parser<R: Read, B: TreeBuilder> {
 }
 
 impl<R: Read, B: TreeBuilder> Parser<R, B> {
-    /// Create a new parser instance with the given newick input stream and a tree builder instance.
+    /// Create a new parser instance from the given newick input stream and a tree builder instance.
     pub fn new(reader: R, builder: B) -> Self {
         Self::with_settings(reader, builder, Settings::default())
     }
 
+    /// Create a new parser instance from the given newick input stream, a tree builder instance, and custom [`Settings`].
     pub fn with_settings(reader: R, builder: B, settings: Settings) -> Self {
         Parser {
             tokenizer: Tokenizer::with_settings(reader, settings),
