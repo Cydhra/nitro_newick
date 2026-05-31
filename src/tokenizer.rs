@@ -1,3 +1,17 @@
+//! Tokenize an ASCII character stream into a sequence of [`tokens`] that can be consumed by the [`Parser`].
+//!
+//! The [`Tokenizer`] is a constituent of the parsing process and usually not required by downstream
+//! crates.
+//! It can be used to implement custom parsers using the same syntax constructs, or to parse
+//! singular tokens (most prominently Newick labels).
+//!
+//! # Example
+//! For a usage example, refer to the documentation of the [`Tokenizer`] struct.
+//!
+//! [`tokens`]: Token
+//! [`Parser`]: crate::parser::Parser
+//! [`Tokenizer`]: Tokenizer
+
 use crate::config::Settings;
 use snafu::{ResultExt, Snafu, ensure};
 use std::borrow::Cow;

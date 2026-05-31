@@ -1,3 +1,13 @@
+//! Serializing existing tree structures into Newick strings.
+//! The serializer is oblivious to the tree data type,
+//! and instead calls an adapter trait [`TreeSerialize`] to obtain the necessary data in order.
+//!
+//! The serializer can be configured with a [`Settings`] instance, selecting behavior between
+//! different ambiguities in the Newick standard.
+//!
+//! [`TreeSerialize`]: TreeSerialize
+//! [`Settings`]: Settings
+
 use crate::TreeSerialize;
 use crate::config::{QuotationMode, Settings};
 use std::iter::Peekable;

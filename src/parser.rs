@@ -1,3 +1,29 @@
+//! Parsing newick strings into trees using a common [`Parser`].
+//! The parser is oblivious to the output tree type,
+//! which is constructed with the [`TreeBuilder`] trait.
+//! The parser is fed tokens by the [`Tokenizer`].
+//! The parser constructs the tokenizer internally, but it is available to downstream crates in the
+//! [`tokenizer`] module as well.
+//!
+//! The parser thus takes any input type that implements [`Read`].
+//! Each call to [`parse`] yields one tree constructed from the input, if the input does not contain
+//! errors.
+//! If the input contains multiple trees, multiple calls to `parse` yield them in the order they
+//! appear in the input.
+//!
+//! The parser can be configured with an instance of [`Settings`], allowing to adhere to different
+//! Newick variants or violating the standard entirely.
+//!
+//! # Example
+//! For a usage example, refer to the documentation of the [`Parser`] struct.
+//!
+//! [`Parser`]: Parser
+//! [`TreeBuilder`]: TreeBuilder
+//! [`Tokenizer`]: Tokenizer
+//! [`tokenizer`]: crate::tokenizer
+//! [`Settings`]: Settings
+//! [`parse`]: Parser::parse
+
 use crate::TreeBuilder;
 use crate::config::Settings;
 use crate::tokenizer::Token::*;
@@ -35,8 +61,31 @@ pub enum ParseError {
 /// subsequent calls to the parser attempt to parse a new tree directly behind the erroneous token.
 ///
 /// The parser constructs the tree by calling the provided implementation of [`TreeBuilder`].
-/// A [`SimpleTreeBuilder`] is available to parse the tree into a minimal data structure that can represent all data from the Newick file.
-/// Alternative implementations can be used to construct other tree data types.
+/// A [`SimpleTreeBuilder`] is available to parse the tree into a minimal data structure that can represent all data
+/// from the Newick file. Alternative implementations can be used to construct other tree data types.
+///
+/// # Example
+/// ```
+/// use std::default;
+/// use nitro_newick::config::Settings;
+/// use nitro_newick::parser::Parser;
+/// use nitro_newick::tree::SimpleTreeBuilder;
+///
+/// let newick = "(A, B, (D, E):0.2)The_Root;";
+/// let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
+///
+/// let tree = parser.parse().unwrap().unwrap();
+/// assert_eq!(tree.node(tree.virtual_root().unwrap()).label, Some("The Root".to_owned()));
+///
+/// let mut parser = Parser::with_settings(
+///     newick.as_bytes(),
+///     SimpleTreeBuilder::new(),
+///     Settings::default().translate_underscores(false)
+/// );
+///
+/// let tree = parser.parse().unwrap().unwrap();
+/// assert_eq!(tree.node(tree.virtual_root().unwrap()).label, Some("The_Root".to_owned()));
+/// ```
 ///
 /// [`parse`]: Parser::parse
 /// [`End`]: End
@@ -62,7 +111,8 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
         Self::with_settings(reader, builder, Settings::default())
     }
 
-    /// Create a new parser instance from the given newick input stream, a tree builder instance, and custom [`Settings`].
+    /// Create a new parser instance from the given newick input stream, a tree builder instance, and custom
+    /// [`Settings`].
     pub fn with_settings(reader: R, builder: B, settings: Settings) -> Self {
         Parser {
             tokenizer: Tokenizer::with_settings(reader, settings),
