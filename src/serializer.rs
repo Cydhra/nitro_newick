@@ -41,11 +41,16 @@ pub struct Serializer<T: TreeSerialize> {
 }
 
 impl<T: TreeSerialize> Serializer<T> {
-    /// Creates a new instance of the `Serializer`.
+    /// Creates a new instance of the `Serializer` with default [settings].
+    ///
+    /// [settings]: Settings
     pub fn new() -> Self {
         Self::with_settings(Settings::default())
     }
 
+    /// Creates a new instance of the `Serializer` with custom [`Settings`].
+    ///
+    /// [`Settings`]: Settings
     pub fn with_settings(settings: Settings) -> Self {
         Serializer {
             tree_type: PhantomData,
@@ -90,7 +95,21 @@ impl<T: TreeSerialize> Serializer<T> {
         }
     }
 
-    /// Serializes the tree into a newick format string.
+    /// Serializes a tree into a newick format string according to the settings of this serializer.
+    ///
+    /// # Example
+    /// ```
+    /// # use nitro_newick::config::QuotationMode::Always;
+    /// # use nitro_newick::config::Settings;
+    /// # use nitro_newick::parser::Parser;
+    /// # use nitro_newick::serializer::Serializer;
+    /// # use nitro_newick::tree::SimpleTreeBuilder;
+    /// let newick = "((A_A));";
+    /// let tree = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new()).parse().unwrap().unwrap();
+    /// let serializer = Serializer::with_settings(Settings::default().use_quoted_strings(Always));
+    /// let converted = serializer.serialize(&tree);
+    /// assert_eq!(converted, "(('A A'));");
+    /// ```
     pub fn serialize(&self, tree: &T) -> String {
         let root = tree.get_virtual_root();
         if root.is_none() {
