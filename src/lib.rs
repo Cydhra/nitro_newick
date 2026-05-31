@@ -81,6 +81,8 @@ pub trait TreeBuilder {
 /// The trait is used by the Serializer to create newick data from tree structures.
 /// Implementations of the trait allow the serializer to work with different tree data structures.
 pub trait TreeSerialize {
+    /// The type used for node identification. Must be trivially copyable. IDs must not change
+    /// after the node has been added to the tree.
     type NodeId: Copy;
 
     /// Get the (virtual) root node of the tree.
