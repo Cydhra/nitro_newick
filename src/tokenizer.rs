@@ -15,7 +15,6 @@
 use crate::config::Settings;
 use snafu::{ResultExt, Snafu, ensure};
 use std::borrow::Cow;
-use std::error::Error;
 use std::fmt::Display;
 use std::io::Read;
 

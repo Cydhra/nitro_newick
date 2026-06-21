@@ -7,9 +7,9 @@
 //!
 //! [`TreeSerialize`]: TreeSerialize
 //! [`Settings`]: Settings
-
 use crate::TreeSerialize;
 use crate::config::{QuotationMode, Settings};
+use std::fmt::Debug;
 use std::iter::Peekable;
 use std::marker::PhantomData;
 
@@ -33,6 +33,7 @@ pub const NEWICK_RESERVED_CHARACTERS: [char; 10] = [' ', '_', '\'', ';', ',', '(
 pub const NEWICK_RESERVED_CHARACTERS_NO_SPACE: [char; 9] = ['_', '\'', ';', ',', '(', ')', ':', '[', ']'];
 
 /// A struct representing a node in the tree during serialization.
+#[derive(Debug, Clone)]
 struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>> {
     id: &'a N,
     label: Option<&'a String>,
@@ -44,7 +45,7 @@ struct Node<'a, N: Clone, I: Iterator<Item = (&'a N, Option<f64>, Option<f64>)>>
 /// A serializer for trees in Newick format.
 /// This struct is generic over the tree type `T`, which must implement the `TreeSerialize` trait.
 /// It is used to query the tree structure during serialization.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Serializer<T: TreeSerialize> {
     tree_type: PhantomData<T>,
     settings: Settings,

@@ -91,6 +91,7 @@ pub enum ParseError {
 /// [`End`]: End
 /// [`TreeBuilder`]: TreeBuilder
 /// [`SimpleTreeBuilder`]: crate::tree::SimpleTreeBuilder
+#[derive(Clone, Debug)]
 pub struct Parser<R: Read, B: TreeBuilder> {
     tokenizer: Tokenizer<R>,
     builder: B,
