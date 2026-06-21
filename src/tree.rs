@@ -33,7 +33,7 @@ pub type TraversalOrder = [NodeId];
 /// The tree does not contain any additional information that cannot be stored in the newick format.
 /// Consequently, the structure is both `Send` and `Sync`, and parsing from and serializing to newick
 /// is efficient.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct NTree {
     nodes: Vec<TreeNode>,
     virtual_root: Option<DirectedEdge>,
@@ -85,10 +85,7 @@ impl Display for TreeError {
 impl NTree {
     /// Creates a new `NTree` with no nodes.
     fn new() -> Self {
-        NTree {
-            nodes: Vec::new(),
-            virtual_root: None,
-        }
+        Self::default()
     }
 
     /// Creates a new `NTree` with the specified node capacity, ensuring no reallocation occurs
