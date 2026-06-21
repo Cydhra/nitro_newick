@@ -15,6 +15,7 @@
 use crate::config::Settings;
 use snafu::{ResultExt, Snafu, ensure};
 use std::borrow::Cow;
+use std::error::Error;
 use std::fmt::Display;
 use std::io::Read;
 
@@ -24,14 +25,14 @@ const BUFFER_SIZE: usize = 16 * 1024;
 #[derive(Debug, Snafu)]
 pub enum TokenizerError {
     /// Error while reading from the input reader
-    #[snafu(display("Could not read input stream"))]
+    #[snafu(display("could not read input stream"))]
     InputError {
         /// IO Error which produced this error in the tokenizer.
         source: std::io::Error,
     },
 
     /// Error while parsing a float
-    #[snafu(display("Invalid float value"))]
+    #[snafu(display("invalid float value"))]
     FloatError {
         /// Parser error in the [`FromStr`] implementation of `f64` which caused this error in the
         /// tokenizer.
@@ -42,7 +43,7 @@ pub enum TokenizerError {
 
     /// General error while trying to read structured input (but not a float),
     /// not caused by an underlying component.
-    #[snafu(display("Cannot parse input: {reason}"))]
+    #[snafu(display("cannot parse input: {reason}"))]
     ParseError {
         /// Human-readable reason for the tokenizer error.
         reason: String,

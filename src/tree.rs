@@ -8,6 +8,7 @@
 
 use crate::tree::TreeError::{ChildNoParent, DiscordantEdgeData, ParentNoChild};
 use crate::{TreeBuilder, TreeSerialize};
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::{iter, mem};
 
@@ -81,6 +82,8 @@ impl Display for TreeError {
         write!(f, "{self:?}")
     }
 }
+
+impl Error for TreeError {}
 
 impl NTree {
     /// Creates a new `NTree` with no nodes.
