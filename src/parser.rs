@@ -31,6 +31,9 @@ use crate::tokenizer::{Token, Tokenizer, TokenizerError};
 use snafu::prelude::*;
 use std::io::Read;
 
+/// The entire data potentially associated with a node
+type NodeData = (Option<String>, Option<f64>, Option<f64>);
+
 /// Error type for the parser
 #[derive(Debug, Snafu)]
 pub enum ParseError {
@@ -319,7 +322,7 @@ impl<R: Read, B: TreeBuilder> Parser<R, B> {
     /// If a comma is consumed, the parser expects a sibling node next, ensuring that a following
     /// closing parenthesis implicitly adds an anonymous node.
     #[inline]
-    fn consume_named_node_info(&mut self) -> Result<(Option<String>, Option<f64>, Option<f64>), ParseError> {
+    fn consume_named_node_info(&mut self) -> Result<NodeData, ParseError> {
         let mut node_label = None;
         let mut node_support = None;
 
