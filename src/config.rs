@@ -49,6 +49,7 @@ pub enum QuotationMode {
 pub struct Settings {
     pub(crate) translate_underscores: bool,
     pub(crate) use_quoted_strings: QuotationMode,
+    pub(crate) prefer_labels: bool,
 }
 
 impl Default for Settings {
@@ -56,6 +57,7 @@ impl Default for Settings {
         Self {
             translate_underscores: true,
             use_quoted_strings: Never,
+            prefer_labels: false,
         }
     }
 }
@@ -77,6 +79,14 @@ impl Settings {
     #[inline]
     pub fn use_quoted_strings(mut self, use_quoted_strings: QuotationMode) -> Self {
         self.use_quoted_strings = use_quoted_strings;
+        self
+    }
+
+    /// Controls whether the serializer prefers labels or support values if both are present
+    /// in a node.
+    #[inline]
+    pub fn prefer_labels(mut self, prefer_labels: bool) -> Self {
+        self.prefer_labels = prefer_labels;
         self
     }
 }

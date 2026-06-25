@@ -236,7 +236,6 @@ impl NTree {
         Ok(())
     }
 
-    // TODO add handling for the edge case
     /// Reroots the tree.
     /// This does not change the tree topology, it solely moves the virtual root to a different node.
     ///
@@ -250,7 +249,8 @@ impl NTree {
     /// Newick cannot represent the resulting tree if the virtual root has a branch support value.
     /// This does not affect this method, since the internal representation can represent this case.
     /// It will create a conflict only if the tree is serialized to Newick.
-    /// The behavior of the serializer in this conflict is currently unspecified.
+    /// The conflict is resolved by the serializer which prefers support values by default,
+    /// but this behavior can be changed.
     ///
     /// # Result
     /// Returns an empty `Ok()` unless the given `node_id` is invalid.
