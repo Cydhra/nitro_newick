@@ -17,6 +17,10 @@ use crate::config::QuotationMode::*;
 /// underscores are present. If reserved characters are present, a string must be enclosed in single quotes.
 /// Single quotes in the string are escaped by doubling them (`''`).
 ///
+/// Newlines are illegal in unquoted and quoted labels.
+/// The serializer replaces them with whitespace and treats the whitespace as defined by the
+/// QuotationMode.
+///
 /// [reserved characters]: crate::serializer::NEWICK_RESERVED_CHARACTERS
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum QuotationMode {
@@ -68,6 +72,8 @@ impl Settings {
     /// Note that the serialization behavior is unaffected by this setting, since spaces are illegal
     /// in unquoted strings and have to be replaced with underscores.
     /// See [use_quoted_strings] for controlling serialization behavior.
+    ///
+    /// [use_quoted_strings]: Self::use_quoted_strings
     #[inline]
     pub fn translate_underscores(mut self, translate_underscores: bool) -> Self {
         self.translate_underscores = translate_underscores;

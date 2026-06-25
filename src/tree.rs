@@ -387,6 +387,8 @@ impl NTree {
     /// Returns a traversal order of the nodes in the tree in an unspecified order,
     /// but guaranteed to visit each node exactly once (and cache-friendly).
     /// This is intended for use with the [`traverse`] method.
+    ///
+    /// [`traverse`]: Self::traverse
     pub fn any_order(&self) -> Vec<NodeId> {
         (0..self.node_count()).collect()
     }

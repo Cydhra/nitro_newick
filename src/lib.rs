@@ -2,9 +2,11 @@
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! A minimal newick parser that constructs a simple adjacency-list-based [tree] structure.
+//! A flexible newick parser that constructs a simple adjacency-list-based [tree] structure.
 //! It can construct arbitrary tree types by implementing a [builder trait] and handing it to
 //! the [parser].
+//!
+//! A [serializer] is provided to convert trees back into Newick format.
 //!
 //! # Minimal Tree
 //! The provided tree data structure is minimal: It stores only information required for Newick,
@@ -17,12 +19,20 @@
 //! This optimization does not break if the tree is not strictly bifurcating but no longer provides
 //! a benefit on non-bifurcating nodes.
 //!
+//! # Flexibility
+//! The [parser] and [serializer] both accept a [`Settings`] instance to configure their behavior.
+//! This way Newick dialects can be parsed, ambiguities resolved, or custom behavior (like leaving
+//! underscores in unquoted strings) can be enabled.
+//!
 //! # Branch Support
 //! The parser automatically parses numerical node labels as branch support.
 //! They are treated differently both in the builder trait and the [tree] data structure,
 //! to facilitate mapping the support to edges.
 //! This mitigates a common issue of Newick-based software, where rerooting or manipulating trees
 //! with branch support values incorrectly assigns support values after the traversal order changes.
+//!
+//! The parser accepts settings to change the default and enforce numerical values to be treated as
+//! labels.
 //!
 //! # String Label Handling
 //! Newick supports two methods of encoding string node labels.
@@ -37,9 +47,37 @@
 //! The parser translates underscores of unquoted strings into whitespace to revert the encoding.
 //! This can be disabled to handle incorrectly encoded files.
 //!
+//! # Examples
+//! Parse a simple tree into an [`NTree`] instance:
+//! ```
+//! # use newickx::{parser::Parser, tree::{NTree, SimpleTreeBuilder}};
+//! # use newickx::parser::ParseError;
+//! # fn main() -> Result<(), ParseError> {
+//! let newick = "(A, B, (D, E):0.2)The_Root;";
+//! let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
+//! let tree = parser.parse()?.unwrap();
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Serialize a tree back into Newick:
+//! ```
+//! # use newickx::{parser::Parser, tree::{NTree, SimpleTreeBuilder}, serializer::Serializer, config::Settings};
+//! # use newickx::parser::ParseError;
+//! # let newick = "(A, B, (D, E):0.2)The_Root;";
+//! # let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
+//! # let tree = parser.parse().unwrap().unwrap();
+//! #
+//! let serializer = Serializer::with_settings(Settings::default().prefer_labels(true));
+//! let converted = serializer.serialize(&tree);
+//! ```
+//!
 //! [builder trait]: TreeBuilder
 //! [parser]: parser::Parser
 //! [tree]: tree::NTree
+//! [serializer]: serializer::Serializer
+//! [`NTree`]: tree::NTree
+//! [`Settings`]: config::Settings
 
 pub mod config;
 pub mod parser;
@@ -50,6 +88,8 @@ pub mod tree;
 /// A trait for building tree structures.
 /// The trait is used by the [`Parser`] to create trees from newick data.
 /// Implementations of the trait allow the parser to create different tree data structures.
+///
+/// [`Parser`]: parser::Parser
 pub trait TreeBuilder {
     /// The tree structure that will be built by the builder.
     type Tree;

@@ -15,7 +15,7 @@ to parse all trees in the input to `NTree` instances.
 ```rs
 let newick = "(A, B, (D, E):0.2)The_Root;";
 let mut parser = Parser::new(newick.as_bytes(), SimpleTreeBuilder::new());
-let tree: Result<Option<NTree>> = parser.parse();
+let tree: Result<Option<NTree>, ParseError> = parser.parse();
 ```
 
 Multiple defaults can be changed with a `Settings` instance.
