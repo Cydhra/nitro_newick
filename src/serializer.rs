@@ -78,7 +78,10 @@ impl<T: TreeSerialize> Serializer<T> {
         branch_length: Option<f64>,
     ) {
         if let Some(label) = label {
-            // todo sanitize input (remove illegal new-lines, etc)
+            // remove illegal newline symbols and replace them with normal whitespace to be handled
+            // by the whitespace policy
+            let label = label.replace(['\n', '\r'], " ");
+
             match settings.use_quoted_strings {
                 QuotationMode::Always => result.push_str(&format!("'{}'", label.replace('\'', "''"))),
                 QuotationMode::PreferUnquoted => {
