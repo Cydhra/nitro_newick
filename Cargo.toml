@@ -11,7 +11,7 @@ categories = ["parser-implementations", "data-structures", "science", "science::
 
 [dependencies]
 snafu = "0.9.1"
-smallvec = { version = "1.15.0", optional = true }
+smallvec = { version = "1.15.2", optional = true }
 
 [features]
 docsrs = [] # special feature for docs.rs to enable doc_auto_cfg on nightly
